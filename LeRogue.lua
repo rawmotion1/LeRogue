@@ -472,7 +472,7 @@ local function binds(cmd, val)
 		print('\at[LeRogue] \ay Invalid command')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
 		print('\at[LeRogue] \ay Please use on/off')
-	else updateSettings(cmd, val) end	
+	else updateSettings(cmd, val) end
 end
 mq.bind('/lr', binds)
 
