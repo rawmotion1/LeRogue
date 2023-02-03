@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.2'
+local version = 'v1.0.3'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -60,36 +60,6 @@ local function saveSettings()
 	mq.pickle(rogPath, { rogSettings=rogSettings, rogClickies=rogClickies })
 end
 
-local function setup()
-	local configData, err = loadfile(mq.configDir..'/'..rogPath) -- read config file
-	if err then -- failed to read the config file, create it using pickle	    
-	    rogSettings.dot = 'on'
-		rogSettings.hide = 'on'
-		rogSettings.disc = 'on'
-		rogSettings.combat = 'on'
-		rogSettings.clickies = 'on'
-		rogSettings.poison = 'on'
-		rogSettings.summon = 'on'
-		rogSettings.stayalive = 'on'
-		rogSettings.glyph = 'on'
-	    saveSettings()
-	    print('\at[LeRogue] \ay Creating config file...')  
-	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
-	    print('\at[LeRogue] \ay Type /lr help for a list of commands')
-	    print('\at[LeRogue] \ay Toggles are currently set to:')
-		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end  
-	elseif configData then -- file loaded, put content into your config table
-	    rogSettings = configData().rogSettings
-	    rogClickies = configData().rogClickies
-	    -- print the contents
-	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
-	    print('\at[LeRogue] \ay Type /lr help for a list of commands')
-	    print('\at[LeRogue] \ay Toggles are currently set to:')
-		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end
-	end
-end
-setup()
-
 local function updateSettings(cmd, val)
 	rogSettings[cmd] = val
 	print('\at[LeRogue] \aoTurning \ay', cmd, ' \ag ', val)
@@ -98,7 +68,10 @@ local function updateSettings(cmd, val)
 end
 
 local function listCommands()
-	print('\at[LeRogue] \ao Commands:')
+	print('\at[LeRogue] \aw---\aoAvailable commands\aw:')
+	print('\at[LeRogue] \ay Type /lr help (or just /lr) to repeat this list')
+	print('\at[LeRogue] \ay /lr pause (toggles pause)')
+	print('\at[LeRogue] \ay /lr pause on/off (turn pause on or off)')
 	print('\at[LeRogue] \ay /lr combat on/off (uses combat abilities)')
 	print('\at[LeRogue] \ay /lr disc on/off (rotates discs)')
 	print('\at[LeRogue] \ay /lr dot on/off (uses dots)')
@@ -113,6 +86,36 @@ local function listCommands()
 	print('\at[LeRogue] \ay /lr listclickies (shows clickies you\'ve added)')
 	print('\at[LeRogue] \ay /lr burn (burn target)')
 end
+
+local function setup()
+	local configData, err = loadfile(mq.configDir..'/'..rogPath) -- read config file
+	if err then -- failed to read the config file, create it using pickle	    
+	    rogSettings.dot = 'on'
+		rogSettings.hide = 'on'
+		rogSettings.disc = 'on'
+		rogSettings.combat = 'on'
+		rogSettings.clickies = 'on'
+		rogSettings.poison = 'on'
+		rogSettings.summon = 'on'
+		rogSettings.stayalive = 'on'
+		rogSettings.glyph = 'on'
+	    saveSettings()
+	    print('\at[LeRogue] \ay Creating config file...')  
+	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)	    
+	    print('\at[LeRogue] \aw---\ayToggles are currently set to\aw:')
+		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end  
+		listCommands()
+	elseif configData then -- file loaded, put content into your config table
+	    rogSettings = configData().rogSettings
+	    rogClickies = configData().rogClickies
+	    -- print the contents
+	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
+	    print('\at[LeRogue] \aw---\ayToggles are currently set to\aw:')
+		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end
+		listCommands()
+	end
+end
+setup()
 
 local function addClicky(cmd,val)
 	local id = mq.TLO.Cursor
@@ -434,9 +437,25 @@ local function stayAlive()
 	end
 end
 
+local pause = false
+local function togglePause(val)
+	if val == 'on' then pause = true
+	elseif val == 'off' then 
+		pause = false
+		print('\at[LeRogue] \agUNPAUSED')
+	else
+		if pause == true then
+			pause = false
+			print('\at[LeRogue] \agUNPAUSED')
+		else pause = true
+		end
+	end
+end
+
 --binds
 local function binds(cmd, val)
-	if cmd == 'addclicky' then addClicky(cmd, val) 
+	if cmd == 'pause' then togglePause(val)
+	elseif cmd == 'addclicky' then addClicky(cmd, val) 
 	elseif cmd == 'removeclicky' then removeClicky(cmd, val)
 	elseif cmd == 'listclickies' then listClickies()
 	elseif cmd == 'burn' then doBurn()
@@ -459,19 +478,26 @@ mq.bind('/lr', binds)
 
 local terminate = false
 while not terminate do
-	while engaged() do
-		if rogSettings.combat == 'on' then doCombatAbilies() end
-		if rogSettings.disc == 'on' then doDiscs() end
-		if rogSettings.dot == 'on' then doDots() end
-		if rogSettings.clickies == 'on' then doClickies() end
-		doOther()
+	while not pause do
+		while engaged() do
+			if rogSettings.combat == 'on' then doCombatAbilies() end
+			if rogSettings.disc == 'on' then doDiscs() end
+			if rogSettings.dot == 'on' then doDots() end
+			if rogSettings.clickies == 'on' then doClickies() end
+			doOther()
+		end
+		if safeToCast() then 
+			reflexes() 
+			if rogSettings.poison == 'on' then applyPoison() end
+			if rogSettings.summon == 'on' then summonPoison() end
+		end
+		if rogSettings.hide == 'on' and not engaged() then autoHide() end
+		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
+		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
 	end
-	if safeToCast() then 
-		reflexes() 
-		if rogSettings.poison == 'on' then applyPoison() end
-		if rogSettings.summon == 'on' then summonPoison() end
+	if pause == true then 
+		local function stop() return pause == false end
+		print('\at[LeRogue] \arPAUSED (type /lr pause to unpause)')
+		mq.delay(30000, stop)
 	end
-	if rogSettings.hide == 'on' and not engaged() then autoHide() end
-	if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
-	if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
 end
