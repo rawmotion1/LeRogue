@@ -32,6 +32,9 @@ Unlike [MQ2Rogue](https://www.redguides.com/community/resources/mq2rogue.1084/ "
 `/lua run lerogue`
 `/lua stop lerogue`
 
+`/lr pause` — toggles pause
+`/lr pause on/off` — explicitly turns pause on or off
+
 `/lr combat on/off` --- enables/disables combat abilities\
 `/lr disc on/off` --- enables/disables rotating discs\
 `/lr dot on/off` --- enables/disables DoTs\
