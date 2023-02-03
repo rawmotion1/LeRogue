@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.3'
+local version = 'v1.0.4'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -480,6 +480,7 @@ local terminate = false
 while not terminate do
 	while not pause do
 		while engaged() do
+			if pause == true then break end
 			if rogSettings.combat == 'on' then doCombatAbilies() end
 			if rogSettings.disc == 'on' then doDiscs() end
 			if rogSettings.dot == 'on' then doDots() end
