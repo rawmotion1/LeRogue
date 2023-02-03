@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.5'
+local version = 'v1.0.7'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -398,21 +398,21 @@ local function summonPoison()
 end
 
 local function stayAlive()
-	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() then
+	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() and goodToGo() then
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.AltAbilityReady('673')() then
+	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.AltAbilityReady('673')() and goodToGo() then
 	        mq.cmd('/alt activate 673')
 	        delayAlt(673)
 	        print('\at[LeRogue] \arOuch!! \ayUsing Tumble')
 	    end
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.AltAbilityReady('1134')() then
+	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.AltAbilityReady('1134')() and goodToGo() then
 	        mq.cmd('/alt activate 1134')
 	        delayAlt(1134)
 	        print('\at[LeRogue] \arOuch!! \ayUsing Assassin\'s Premonition')
 	    end
 	    -- Nimble
-	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.CombatAbilityReady('Nimble Discipline')() then
+	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.CombatAbilityReady('Nimble Discipline')() and goodToGo() then
 	        mq.cmd('/stopdisc')
 	        mq.delay(250)
 	        mq.cmd('/disc Nimble Discipline')
@@ -420,7 +420,7 @@ local function stayAlive()
 	        print('\at[LeRogue] \arOuch!! \ayUsing Nible Discipline')
 	    end
 	    -- Escape
-	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady('102')() then
+	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady('102')() and goodToGo() then
 	        mq.cmd('/backoff')
 	        mq.cmd('/end')
 	        mq.cmd('/attack off')
