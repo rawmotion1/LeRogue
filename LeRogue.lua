@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.4'
+local version = 'v1.0.5'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -400,13 +400,13 @@ end
 local function stayAlive()
 	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() then
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 70 and mq.TLO.Me.AltAbilityReady('673')() then
+	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.AltAbilityReady('673')() then
 	        mq.cmd('/alt activate 673')
 	        delayAlt(673)
 	        print('\at[LeRogue] \arOuch!! \ayUsing Tumble')
 	    end
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 55 and mq.TLO.Me.AltAbilityReady('1134')() then
+	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.AltAbilityReady('1134')() then
 	        mq.cmd('/alt activate 1134')
 	        delayAlt(1134)
 	        print('\at[LeRogue] \arOuch!! \ayUsing Assassin\'s Premonition')
@@ -478,9 +478,15 @@ mq.bind('/lr', binds)
 
 local terminate = false
 while not terminate do
+	if pause == true then 
+		local function stop() return pause == false end
+		print('\at[LeRogue] \arPAUSED (type /lr pause to unpause)')
+		mq.delay(30000, stop)
+	end
 	while not pause do
 		while engaged() do
 			if pause == true then break end
+			if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
 			if rogSettings.combat == 'on' then doCombatAbilies() end
 			if rogSettings.disc == 'on' then doDiscs() end
 			if rogSettings.dot == 'on' then doDots() end
@@ -495,10 +501,5 @@ while not terminate do
 		if rogSettings.hide == 'on' and not engaged() then autoHide() end
 		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
 		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
-	end
-	if pause == true then 
-		local function stop() return pause == false end
-		print('\at[LeRogue] \arPAUSED (type /lr pause to unpause)')
-		mq.delay(30000, stop)
 	end
 end
