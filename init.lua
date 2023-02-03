@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.8'
+local version = 'v1.0.9'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -183,7 +183,6 @@ local function goodToGo() --Checks whether you can perform actions
 	and not mq.TLO.Me.Mezzed()
 	and not mq.TLO.Me.Invulnerable()
 	and not mq.TLO.Me.Casting()
-	and not	mq.TLO.Me.Moving()
 end
 
 local function engaged() --Checks whether in combat with NPC lvl 110+
@@ -198,6 +197,7 @@ end
 
 local function safeToCast() --Checks whether it's safe to cast and rebuff
 	return goodToGo()
+	and not	mq.TLO.Me.Moving()
 	and mq.TLO.SpawnCount('npc radius 60')() < 1 
 	and mq.TLO.Me.XTarget() < 1 
 	and mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() == nil 
