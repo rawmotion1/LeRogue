@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.7'
+local version = 'v1.0.8'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
