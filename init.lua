@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.0.9'
+local version = 'v1.1.0'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -76,6 +76,7 @@ local function listCommands()
 	print('\at[LeRogue] \ay /lr disc on/off (rotates discs)')
 	print('\at[LeRogue] \ay /lr dot on/off (uses dots)')
 	print('\at[LeRogue] \ay /lr hide on/off (keeps you hidden)')
+	print('\at[LeRogue] \ay /lr pausehide x (pauses autohide for x seconds then resumes)')
 	print('\at[LeRogue] \ay /lr stayalive on/off (uses defensive abilities to no die)')
 	print('\at[LeRogue] \ay /lr poison on/off (reapplies poison when it\'s safe)')
 	print('\at[LeRogue] \ay /lr summon on/off (summons poison when it\'s safe)')
@@ -452,9 +453,33 @@ local function togglePause(val)
 	end
 end
 
+local myTimer = 0
+local function setTimer(d)
+    local startTime = os.time()
+    myTimer = startTime + d
+end
+
 --binds
 local function binds(cmd, val)
 	if cmd == 'pause' then togglePause(val)
+	elseif cmd == 'pausehide' then
+		val = tonumber(val)
+		if val == nil then
+			print('\at[LeRogue] \ay Please specify seconds (e.g. 30 for 30 seconds)')
+			return
+		end
+		if rogSettings.hide == 'off' then
+			print('\at[LeRogue] \ay Pausehide only works when autohide is on')
+		elseif rogSettings.hide == 'paused' then
+			print('\at[LeRogue] \ay Hide is already paused!')
+		elseif val > 300 then
+			print('\at[LeRogue] \ay Max value is 300')	
+		else	
+			setTimer(val)
+			mq.cmd('/makemevisible')
+			rogSettings.hide = 'paused'
+			print('\at[LeRogue] \ay Hide paused for ', val, ' seconds')
+		end
 	elseif cmd == 'addclicky' then addClicky(cmd, val) 
 	elseif cmd == 'removeclicky' then removeClicky(cmd, val)
 	elseif cmd == 'listclickies' then listClickies()
@@ -484,6 +509,7 @@ while not terminate do
 		mq.delay(30000, stop)
 	end
 	while not pause do
+		local currentTime = os.time()
 		while engaged() do
 			if pause == true then break end
 			if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
@@ -498,7 +524,12 @@ while not terminate do
 			if rogSettings.poison == 'on' then applyPoison() end
 			if rogSettings.summon == 'on' then summonPoison() end
 		end
-		if rogSettings.hide == 'on' and not engaged() then autoHide() end
+		if rogSettings.hide == 'on' and not engaged() then 
+			autoHide()
+		elseif rogSettings.hide == 'paused' and currentTime >= myTimer then
+			rogSettings.hide = 'on'
+			print('\at[LeRogue] \agHide is back on')
+		end
 		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
 		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
 	end

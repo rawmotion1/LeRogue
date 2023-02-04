@@ -41,6 +41,7 @@ Unlike [MQ2Rogue](https://www.redguides.com/community/resources/mq2rogue.1084/ "
 `/lr clickies on/off` --- enables/disables using clickies in combat
 
 `/lr hide on/off` --- enables/disables auto hide/sneak\
+`/lr pausehide x` --- turn off autohide for x seconds, then resume
 `/lr stayalive on/off` --- when on, will use a series of defensive abilities to keep you from dying
 
 `/lr glyph on/off` --- use power glyph during burn\
