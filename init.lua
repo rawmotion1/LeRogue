@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.1'
+local version = 'v1.1.2'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -389,6 +389,30 @@ local function doBurn()
 	end
 end
 
+local function keepBurning()
+	for k,v in pairs(myBurn) do
+		if not engaged() or pause == true then break end
+		local burnName = v
+		if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
+			mq.cmdf('/alt activate %s', v)
+			burnName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
+			print('\at[LeRogue] \aoBurning: \ay', burnName)
+			delayAlt(v)
+		elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs        
+			mq.cmdf('/disc %s', v)
+			print('\at[LeRogue] \aoBurning: \ay', burnName)
+			delayCombat(v)
+		end
+	end
+	local r = 'Rage of Rolfron'
+	if mq.TLO.FindItem(r)() and mq.TLO.Me.ItemReady(r)() then
+		if not engaged() or pause == true then return end
+		mq.cmdf('/useitem %s', r)
+		print('\at[LeRogue] \aoBurning: \ay', r)
+		delayItem(r)
+	end
+end
+
 local function doOther()
   	if mq.TLO.Me.AbilityReady('Disarm')() then
 		if not engaged() or pause == true then return end
@@ -577,7 +601,7 @@ while not terminate do
 		if engaged() and rogSettings.disc == 'on' then doDiscs() end
 		if engaged() and rogSettings.dot == 'on' then doDots() end
 		if engaged() and rogSettings.clickies == 'on' then doClickies() end
-		if engaged() and rogSettings.burnalways == 'on' then doBurn() end
+		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
 		if engaged() then doOther() end
 
 		if safeToCast() then 
