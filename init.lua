@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.2'
+local version = 'v1.1.3'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -13,7 +13,7 @@ local myCombatAbilities = {
 	mq.TLO.Spell('disorienting puncture').RankName(),
 	mq.TLO.Spell('obfuscated blade').RankName(),
 	mq.TLO.Spell('ecliptic weapons').RankName(),
-	1506,
+	1506
 }
 
 local myDebuffs = {
@@ -55,38 +55,51 @@ local thief = mq.TLO.Spell('thief\'s sight').RankName()
 local beguile = mq.TLO.Spell('beguile').RankName()
 local poison = mq.TLO.FindItem('Consigned')
 local legs = mq.TLO.Me.Inventory(18)
+local rage = 86155
 local pause = false
 local myTimer = 0
+local nimble = 'Nimble Discipline'
+
+local function color(val)
+	if val == 'on' then val = '\agon' 
+	elseif val == 'off' then val = '\aroff'
+	end
+	return val
+end
 
 local function listCommands()
-	print('\at[LeRogue] \aw---\aoAvailable commands\aw:')
-	print('\at[LeRogue] \ay Type /lr help (or just /lr) to repeat this list')
-	print('\at[LeRogue] \ay /lr pause (toggles pause)')
-	print('\at[LeRogue] \ay /lr pause on/off (turn pause on or off)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr combat on/off (uses combat abilities)')
-	print('\at[LeRogue] \ay /lr disc on/off (rotates discs)')
-	print('\at[LeRogue] \ay /lr dot on/off (uses dots)')
-	print('\at[LeRogue] \ay /lr clickies on/off (uses combat clickies)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr hide on/off (keeps you hidden)')
-	print('\at[LeRogue] \ay /lr pausehide x (pauses autohide for x seconds then resumes)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr stayalive on/off (uses defensive abilities to no die)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr poison on/off (reapplies poison when it\'s safe)')
-	print('\at[LeRogue] \ay /lr summon on/off (summons poison when it\'s safe)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr addclicky (adds a clicky on your cursor to combat routine)')
-	print('\at[LeRogue] \ay /lr removeclicky (removes a clicky on your cursor from combat routine)')
-	print('\at[LeRogue] \ay /lr listclickies (shows clickies you\'ve added)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr minlevel (Min NPC lvl to use combat abilities, default is 110)')
-	print('\at[LeRogue] \a0 ----')
-	print('\at[LeRogue] \ay /lr burn (burn target)')
-	print('\at[LeRogue] \ay /lr glyph on/off (uses power glyph during burn)')
-	print('\at[LeRogue] \ay /lr burnalways (always use burns)')
+	print('\at[LeRogue] \aw---- \atAll available commands \aw----')
+	print('\at[LeRogue] \ay \awType \ay/lr help \aw(or just \ay/lr\aw) to repeat this list')
+	print('\at[LeRogue] \ay \awType \ay/lr resetdefaults \aw to reset all settings')
+	print('\at[LeRogue] \ao Pausing the script:')
+	print('\at[LeRogue] \ay /lr pause \aw(toggles pause)')
+	print('\at[LeRogue] \ay /lr pause \agon\aw/\aroff\aw (turn pause on or off)')
+	print('\at[LeRogue] \ao Combat settings:')
+	print('\at[LeRogue] \ay /lr combat \agon\aw/\aroff\aw (uses combat abilities)')
+	print('\at[LeRogue] \ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
+	print('\at[LeRogue] \ay /lr dot \agon\aw/\aroff\aw (uses dots)')
+	print('\at[LeRogue] \ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
+	print('\at[LeRogue] \ao Auto hide settings:')
+	print('\at[LeRogue] \ay /lr hide \agon\aw/\aroff\aw (keeps you hidden)')
+	print('\at[LeRogue] \ay /lr pausehide x \aw(be visible for x seconds then resume)')
+	print('\at[LeRogue] \ao Defense settings:')
+	print('\at[LeRogue] \ay /lr stayalive \agon\aw/\aroff\aw (use defense abilities in emergency)')
+	print('\at[LeRogue] \ao Poison settings:')
+	print('\at[LeRogue] \ay /lr poison \agon\aw/\aroff\aw (reapplies poison when it\'s safe)')
+	print('\at[LeRogue] \ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
+	print('\at[LeRogue] \ao Combat routine clickies:')
+	print('\at[LeRogue] \ay /lr addclicky \aw(add clicky on cursor to routine)')
+	print('\at[LeRogue] \ay /lr removeclicky \aw(remove clicky on cursor from routine)')
+	print('\at[LeRogue] \ay /lr listclickies \aw(shows clickies you\'ve added)')
+	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
+	print('\at[LeRogue] \ay /lr minlevel x \aw(default is 110)')
+	print('\at[LeRogue] \aoBurn settings:')
+	print('\at[LeRogue] \ay /lr burn \aw(big burn on target)')
+	print('\at[LeRogue] \ay /lr glyph \agon\aw/\aroff\aw (uses power glyph during burn)')
+	print('\at[LeRogue] \ay /lr burnalways \aw(always use burns)')
 end
+
+-------------------------Handle settings----------------------------------------
 
 local function saveSettings()
 	mq.pickle(rogPath, { rogSettings=rogSettings, rogClickies=rogClickies })
@@ -94,63 +107,69 @@ end
 
 local function updateSettings(cmd, val)
 	rogSettings[cmd] = val
-	print('\at[LeRogue] \aoTurning \ay', cmd, ' \ag ', val)
+	print('\at[LeRogue] \aoTurning \ay', cmd, ' \ag ', color(val))
 	mq.delay(250)
 	saveSettings()
 end
 
 local function setDefaults(s)
-	if s == 'dot' then rogSettings.dot = 'on'
-	elseif s == 'hide' then rogSettings.hide = 'on'
-	elseif s == 'disc' then rogSettings.disc = 'on'
-	elseif s == 'combat' then rogSettings.combat = 'on'
-	elseif s == 'clickies' then rogSettings.clickies = 'on'
-	elseif s == 'poison' then rogSettings.poison = 'on'
-	elseif s == 'summon' then rogSettings.summon = 'on'
-	elseif s == 'stayalive' then rogSettings.stayalive = 'on'
-	elseif s == 'glyph' then rogSettings.glyph = 'on'
-	elseif s == 'burnalways' then rogSettings.burnalways = 'off' 
-	elseif s == 'minlevel' then rogSettings.minlevel = 110
-	end
+	if s == 'all' then print('\at[LeRogue] \aw---- \at Setting toggles to default values \aw----') end
+	if s == 'all' or rogSettings.dot == nil then rogSettings.dot = 'on' end
+	if s == 'all' or rogSettings.hide == nil then rogSettings.hide = 'on' end
+	if s == 'all' or rogSettings.disc == nil then rogSettings.disc = 'on' end
+	if s == 'all' or rogSettings.combat == nil then rogSettings.combat = 'on' end
+	if s == 'all' or rogSettings.clickies == nil then rogSettings.clickies = 'on' end
+	if s == 'all' or rogSettings.poison == nil then rogSettings.poison = 'on' end
+	if s == 'all' or rogSettings.summon == nil then rogSettings.summon = 'on' end
+	if s == 'all' or rogSettings.stayalive == nil then rogSettings.stayalive = 'on' end
+	if s == 'all' or rogSettings.glyph == nil then rogSettings.glyph = 'off' end
+	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end 
+	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 110 end
+	for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",color(v)) end
 	saveSettings()
 end
 
 local function setup()
 	local configData, err = loadfile(mq.configDir..'/'..rogPath) -- read config file
 	if err then -- failed to read the config file, create it using pickle	    
-	    rogSettings.dot = 'on'
-		rogSettings.hide = 'on'
-		rogSettings.disc = 'on'
-		rogSettings.combat = 'on'
-		rogSettings.clickies = 'on'
-		rogSettings.poison = 'on'
-		rogSettings.summon = 'on'
-		rogSettings.stayalive = 'on'
-		rogSettings.glyph = 'on'
-		rogSettings.burnalways = 'off'
-		rogSettings.minlevel = 110
-	    saveSettings()
 	    print('\at[LeRogue] \ay Creating config file...')  
 	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)	    
-	    print('\at[LeRogue] \aw---\ayToggles are currently set to\aw:')
-		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end  
+		setDefaults('all')
 		listCommands()
 	elseif configData then -- file loaded, put content into your config table
 	    rogSettings = configData().rogSettings
 	    rogClickies = configData().rogClickies
-		if rogSettings.burnalways == nil then --Add newer settings that are missing
-			setDefaults('burnalways')
-		elseif rogSettings.minlevel == nil then
-			setDefaults('minlevel')
-		end
-	    -- print the contents
 	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
-	    print('\at[LeRogue] \aw---\ayToggles are currently set to\aw:')
-		for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",v) end
+	    print('\at[LeRogue] \aw---- \atToggles are currently set to \aw----')
+		setDefaults() -- check for missing settings
 		listCommands()
 	end
 end
 setup()
+
+-------------------------Misc functions----------------------------------------
+
+local function notNil(arg)
+	if arg ~= nil then
+		return arg
+	else
+		return 0			
+	end
+end
+
+local function togglePause(val)
+	if val == 'on' then pause = true
+	elseif val == 'off' then 
+		pause = false
+		print('\at[LeRogue] \agUNPAUSED')
+	else
+		if pause == true then
+			pause = false
+			print('\at[LeRogue] \agUNPAUSED')
+		else pause = true
+		end
+	end
+end
 
 local function newMinLvl(val)
 	val = tonumber(val)
@@ -164,6 +183,8 @@ local function newMinLvl(val)
 		saveSettings()
 	end
 end
+
+---------------------Add and remove clickes--------------------
 
 local function addClicky(cmd,val)
 	local id = mq.TLO.Cursor
@@ -213,15 +234,9 @@ local function listClickies()
 	end
 end
 
-local function notNil(arg)
-	if arg ~= nil then
-		return arg
-	else
-		return 0			
-	end
-end
+---------------------State checks---------------------
 
-local function goodToGo() --Checks whether you can perform actions
+local function goodToGo()
 	return not mq.TLO.Me.Stunned()
 	and not	mq.TLO.Me.Dead() 
 	and not mq.TLO.Me.Feigning() 
@@ -233,7 +248,7 @@ local function goodToGo() --Checks whether you can perform actions
 	and not mq.TLO.Me.Casting()
 end
 
-local function engaged() --Checks whether in combat with NPC lvl 110+
+local function engaged()
 	return goodToGo()
 	and mq.TLO.Target.ID() ~= 0 
 	and notNil(mq.TLO.Target.Distance()) < 18 
@@ -243,7 +258,7 @@ local function engaged() --Checks whether in combat with NPC lvl 110+
 	and mq.TLO.Me.Combat() 
 end	
 
-local function safeToCast() --Checks whether it's safe to cast and rebuff
+local function safeToCast()
 	return goodToGo()
 	and not	mq.TLO.Me.Moving()
 	and mq.TLO.SpawnCount('npc radius 60')() < 1 
@@ -254,56 +269,69 @@ local function safeToCast() --Checks whether it's safe to cast and rebuff
 	and not (mq.TLO.Me.PctHPs() < 26) 
 end
 
---Helper function to manage delays
-local function delayCombat(name)
-	local function stop() return not mq.TLO.Me.CombatAbilityReady(name)() end
-	mq.delay(3000, stop)
-end
+--------------------------Combat routine--------------------------
 
-local function delayAlt(name)
-	local function stop() return not mq.TLO.Me.AltAbilityReady(name)() end
-	mq.delay(3000, stop)
-end
-
-local function delayItem(name)
-	local function stop() return not mq.TLO.Me.ItemReady(name)() end
-	mq.delay(3000, stop)
-end
-
-local function delayAbility(name)
-	local function stop() return not mq.TLO.Me.AbilityReady(name)() end
-	mq.delay(3000, stop)
+local function execute(name, kind)
+	if type(name) == 'string' then 
+		if name == 'hide' or name == 'sneak' or name == 'disarm' then --it's an ability
+            if mq.TLO.Me.AbilityReady(name)() then
+                mq.cmdf('/doability %s', name)
+                local function stop() return not mq.TLO.Me.AbilityReady(name)() end
+                mq.delay(3000, stop)
+            end
+		else --it's a disc
+            if mq.TLO.Me.CombatAbilityReady(name)() then
+                mq.cmdf('/disc %s', name)
+                if kind == 'dot' then
+                    print('\at[LeRogue] \aoUsing DoT: \ay', name)
+                elseif kind == 'burn' then
+                    print('\at[LeRogue] \aoBurning: \ay', name)
+				elseif kind == 'live' then
+					print('\at[LeRogue] \arOuch!! \ayUsing ', name)
+                else
+                    print('\at[LeRogue] \aoUsing: \ar', name)
+                end
+                local function stop() return not mq.TLO.Me.CombatAbilityReady(name)() end
+                mq.delay(3000, stop)
+            end
+		end
+	elseif type(name) == 'number' then
+		if mq.TLO.FindItemCount(name)() > 0 then --it's a clicky
+            if mq.TLO.Me.ItemReady(name)() then
+                mq.cmdf('/useitem "%s"', mq.TLO.FindItem(name).Name())
+                print('\at[LeRogue] \aoClicking: \ay', mq.TLO.FindItem(name).Name())
+                local function stop() return not mq.TLO.Me.ItemReady(name)() end
+                mq.delay(3000, stop)
+            end
+		else --it's an aa
+            if mq.TLO.Me.AltAbilityReady(name)() then
+                mq.cmdf('/alt activate %s', name)
+                local cleanName = mq.TLO.Spell(mq.TLO.AltAbility(name).Name()).RankName()
+                if kind == 'dot' then
+                    print('\at[LeRogue] \aoUsing DoT: \ay', cleanName)
+                elseif kind == 'burn' then
+                    print('\at[LeRogue] \aoBurning: \ay', cleanName)
+				elseif kind == 'live' then
+					print('\at[LeRogue] \arOuch!! \ayUsing ', cleanName)    
+                else
+                    print('\at[LeRogue] \aoUsing: \ar', cleanName)
+                end
+                local function stop() return not mq.TLO.Me.AltAbilityReady(name)() end
+                mq.delay(3000, stop) 
+            end
+		end
+	end
 end
 
 local function doCombatAbilies()
 	for k,v in pairs(myCombatAbilities) do
 		if not engaged() or pause == true then break end
-		local abyName = v
-		if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
-			mq.cmdf('/alt activate %s', v)
-			abyName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
-			print('\at[LeRogue] \aoUsing: \ar', abyName)
-			delayAlt(v)
-		elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs     
-	        mq.cmdf('/disc %s', v)
-			print('\at[LeRogue] \aoUsing: \ar', abyName)
-	        delayCombat(v)
-		end
+		execute(v)
 	end
 	if notNil(mq.TLO.Target.PctHPs()) > 20 then
 		for k,v in pairs(myDebuffs) do
 			if not engaged() or pause == true then break end
-			local abyName = v
-			if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
-				mq.cmdf('/alt activate %s', v)
-				abyName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
-				print('\at[LeRogue] \aoUsing: \ar', abyName)
-				delayAlt(v)
-			elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs     
-		        mq.cmdf('/disc %s', v)
-		        print('\at[LeRogue] \aoUsing: \ar', abyName)
-				delayCombat(v)
-			end
+			execute(v)
 		end
 	end
 end
@@ -312,18 +340,15 @@ local function doDots()
 	if notNil(mq.TLO.Target.PctHPs()) > 20 then
 		for k,v in pairs(myDots) do
 			if not engaged() or pause == true then break end
-			local dotName = v
-			if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
-				mq.cmdf('/alt activate %s', v)
-				dotName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
-				print('\at[LeRogue] \aoUsing Dot: \ay', dotName)
-				delayAlt(v)
-		  	elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs       
-		        mq.cmdf('/disc %s', v)
-				print('\at[LeRogue] \aoUsing Dot: \ay', dotName)
-		        delayCombat(v)
-		  	end		
+			execute(v, 'dot')
 		end
+	end
+end
+
+local function doClickies()
+	for k,v in pairs(rogClickies) do
+		if not engaged() or pause == true then break end
+		execute(v)
 	end
 end
 
@@ -343,46 +368,37 @@ local function doDiscs()
 	end
 end
 
-local function doClickies()
-	for k,v in pairs(rogClickies) do
-		if not engaged() or pause == true then break end
-		if mq.TLO.FindItemCount(v)() > 0 and mq.TLO.Me.ItemReady(v)() then
-			mq.cmdf('/useitem "%s"', mq.TLO.FindItem(v).Name())
-			print('\at[LeRogue] \aoClicking: \ay', mq.TLO.FindItem(v).Name())
-			delayItem(v)
-		end
+local function doOther()
+    if not engaged() or pause == true then return end
+  	execute('disarm')
+    execute('hide')
+    if rogSettings.combat == 'on' and mq.TLO.Me.TargetOfTarget() ~= mq.TLO.Me.Name() then
+	    execute(beguile)
+  	end
+    if mq.TLO.Me.PctEndurance() < 10 then
+		execute(calm)
 	end
-end
+  	if mq.TLO.Me.CombatAbilityReady(thief)() and not mq.TLO.Me.Song(thief)() then
+  		local function stop() return mq.TLO.Me.Song(thief)() end
+	    mq.cmdf('/disc %s', thief)
+	    mq.delay(3000, stop)
+  	end
+end 
 
 local function doBurn()
 	if engaged() then
 		print('\at[LeRogue] \arBUURRRRNNNNN!!!')
-		if rogSettings.glyph == 'on' and mq.TLO.Me.AltAbilityReady(5304)() then
-			if not engaged() or pause == true then return end
-			mq.cmd('/alt activate 5304')
-			print('\at[LeRogue] \aoBurning: \ayPower Glyph')
-			delayAlt(5304)
-		end
 		for k,v in pairs(myBurn) do
 			if not engaged() or pause == true then break end
-			local burnName = v
-			if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
-				mq.cmdf('/alt activate %s', v)
-				burnName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
-				print('\at[LeRogue] \aoBurning: \ay', burnName)
-				delayAlt(v)
-			elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs        
-		        mq.cmdf('/disc %s', v)
-				print('\at[LeRogue] \aoBurning: \ay', burnName)
-		        delayCombat(v)
-			end
+			execute(v, 'burn')
 		end
-		local r = 'Rage of Rolfron'
-		if mq.TLO.FindItem(r)() and mq.TLO.Me.ItemReady(r)() then
+        if rogSettings.glyph == 'on' then
 			if not engaged() or pause == true then return end
-			mq.cmdf('/useitem %s', r)
-			print('\at[LeRogue] \aoBurning: \ay', r)
-			delayItem(r)
+			execute(5304, burn)
+		end
+		if mq.TLO.FindItem(rage)() then
+            if not engaged() or pause == true then return end
+			execute(rage)
 		end
 	else
 		print('\at[LeRogue] \ayYou\'re not engaged. Cancelling burn.')
@@ -390,70 +406,17 @@ local function doBurn()
 end
 
 local function keepBurning()
-	for k,v in pairs(myBurn) do
-		if not engaged() or pause == true then break end
-		local burnName = v
-		if type(v) == 'number' and mq.TLO.Me.AltAbilityReady(v)() then --for aas
-			mq.cmdf('/alt activate %s', v)
-			burnName = mq.TLO.Spell(mq.TLO.AltAbility(v).Name()).RankName()
-			print('\at[LeRogue] \aoBurning: \ay', burnName)
-			delayAlt(v)
-		elseif type(v) == 'string' and mq.TLO.Me.CombatAbilityReady(v)() then --for discs        
-			mq.cmdf('/disc %s', v)
-			print('\at[LeRogue] \aoBurning: \ay', burnName)
-			delayCombat(v)
-		end
-	end
-	local r = 'Rage of Rolfron'
-	if mq.TLO.FindItem(r)() and mq.TLO.Me.ItemReady(r)() then
-		if not engaged() or pause == true then return end
-		mq.cmdf('/useitem %s', r)
-		print('\at[LeRogue] \aoBurning: \ay', r)
-		delayItem(r)
-	end
-end
-
-local function doOther()
-  	if mq.TLO.Me.AbilityReady('Disarm')() then
-		if not engaged() or pause == true then return end
-	    mq.cmd('/doability disarm')
-	    delayAbility('disarm')
-  	end
-  	if mq.TLO.Me.AbilityReady('Hide')() then
-		if not engaged() or pause == true then return end
-	    mq.cmd('/doability hide')
-	    delayAbility('hide')
-  	end
-  	if mq.TLO.Me.CombatAbilityReady(thief)() and not mq.TLO.Me.Song(thief)() then
-		if not engaged() or pause == true then return end
-  		local function stop() return mq.TLO.Me.Song(thief)() end
-	    mq.cmdf('/disc %s', thief)
-	    mq.delay(3000, stop)
-  	end
-  	if rogSettings.combat == 'on' and mq.TLO.Me.CombatAbilityReady(beguile)() and mq.TLO.Me.TargetOfTarget() ~= mq.TLO.Me.Name() then
-		if not engaged() or pause == true then return end
-	    mq.cmdf('/disc %s', beguile)
-		print('\at[LeRogue] \aoUsing: \ar', beguile)
-	    delayCombat(beguile)
-  	end
-  	if mq.TLO.Me.CombatAbilityReady(calm)() and mq.TLO.Me.PctEndurance() < 10 then
-		if not engaged() or pause == true then return end
-        mq.cmdf('/disc %s', calm)
-		print('\at[LeRogue] \aoUsing: \ay', calm)
-		delayCombat(calm)
-	end
-end 
-
-local function autoHide()
-    if mq.TLO.Me.AbilityReady('Sneak')() and mq.TLO.Me.State() ~= 'MOUNT' and not mq.TLO.Me.Dead() then
-    	mq.cmd('/doability sneak')
-    	delayAbility('Sneak')
+    for k,v in pairs(myBurn) do
+        if not engaged() or pause == true then break end
+        execute(v, 'burn')
     end
-    if mq.TLO.Me.AbilityReady('Hide')() and mq.TLO.Me.Sneaking() then
-    	mq.cmd('/doability hide')
-    	delayAbility('Hide')
+    if mq.TLO.FindItem(rage)() then
+        if not engaged() or pause == true then return end
+        execute(rage)
     end
 end
+
+------------------------------Safe to cast -----------------------------
 
 local function reflexes()
 	if mq.TLO.Me.Buff(reflex).ID() == nil then
@@ -475,34 +438,34 @@ local function applyPoison()
 end
 
 local function summonPoison()
-	if legs.Clicky() and mq.TLO.Me.ItemReady(legs)() and mq.TLO.FindItemCount(poison)() < 20 then
-        mq.cmdf('/useitem "%s"', legs)
-		print('\at[LeRogue] \aoClicking: \ay', legs)
-		delayItem(legs)
+	if legs.Clicky() and mq.TLO.Me.ItemReady(legs) and mq.TLO.FindItemCount(poison)() < 20 then
+		local function stop() return not mq.TLO.Me.ItemReady(legs) end
+		mq.cmdf('/useitem "%s"', legs)
+        print('\at[LeRogue] \aoClicking: \ay', legs)
+        mq.delay(3000, stop)
 	end
 end
+
+----------------------------Emergency stay alive--------------------------
 
 local function stayAlive()
 	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() and goodToGo() then
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.AltAbilityReady('673')() and goodToGo() then
-	        mq.cmd('/alt activate 673')
-	        delayAlt(673)
-	        print('\at[LeRogue] \arOuch!! \ayUsing Tumble')
-	    end
+	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.PctHPs() > 59 and goodToGo() then execute(673, 'live') end
 	    -- Premonition
-	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.AltAbilityReady('1134')() and goodToGo() then
-	        mq.cmd('/alt activate 1134')
-	        delayAlt(1134)
-	        print('\at[LeRogue] \arOuch!! \ayUsing Assassin\'s Premonition')
-	    end
+	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.PctHPs() > 39 and goodToGo() then execute(1134, 'live') end
 	    -- Nimble
-	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.CombatAbilityReady('Nimble Discipline')() and goodToGo() then
-	        mq.cmd('/stopdisc')
-	        mq.delay(250)
-	        mq.cmd('/disc Nimble Discipline')
-	        delayCombat('Nimble Discipline')
-	        print('\at[LeRogue] \arOuch!! \ayUsing Nible Discipline')
+	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.PctHPs() > 19 and goodToGo() and mq.TLO.Me.CombatAbilityReady(nimble)() then
+	        if mq.TLO.Me.ActiveDisc() ~= nil and mq.TLO.Me.ActiveDisc() ~= nimble then 
+				mq.cmd('/stopdisc')
+				mq.delay(500)
+			end
+	        repeat
+				mq.cmdf('/disc %s', nimble)
+				mq.delay(250)
+				if not mq.TLO.Me.CombatAbilityReady(nimble)() then break end
+			until mq.TLO.Me.ActiveDisc() == nimble
+			print('\at[LeRogue] \arOuch!! \ayUsing ', nimble)
 	    end
 	    -- Escape
 	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady('102')() and goodToGo() then
@@ -515,25 +478,20 @@ local function stayAlive()
 	        mq.cmd('/nav stop')
 	        mq.cmd('/play off')
 	        mq.delay(250)
-	        mq.cmd('/alt activate 102')
-	        print('\at[LeRogue] \arOuch!! \ayUsing ESCAPE!')
-	        delayAlt(102)
+	        execute(102, 'live')
 	    end
 	end
 end
 
-local function togglePause(val)
-	if val == 'on' then pause = true
-	elseif val == 'off' then 
-		pause = false
-		print('\at[LeRogue] \agUNPAUSED')
-	else
-		if pause == true then
-			pause = false
-			print('\at[LeRogue] \agUNPAUSED')
-		else pause = true
-		end
-	end
+--------------------------Auto hide and pause hide-------------------
+
+local function autoHide()
+    if mq.TLO.Me.State() ~= 'MOUNT' and not mq.TLO.Me.Dead() then
+    	execute('sneak')
+    end
+    if mq.TLO.Me.Sneaking() then
+    	execute('hide')
+    end
 end
 
 local function setTimer(d)
@@ -560,9 +518,11 @@ local function pauseHide(val)
 	end
 end
 
---binds
+----------------------------Handle binds--------------------------------------
+
 local function binds(cmd, val)
 	if cmd == 'pause' then togglePause(val)
+	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
 	elseif cmd == 'addclicky' then addClicky(cmd, val) 
@@ -586,6 +546,8 @@ local function binds(cmd, val)
 	else updateSettings(cmd, val) end
 end
 mq.bind('/lr', binds)
+
+----------------------------Start loop----------------------------------------
 
 local terminate = false
 while not terminate do
