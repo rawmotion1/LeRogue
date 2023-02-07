@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.3'
+local version = 'v1.1.4'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -438,8 +438,8 @@ local function applyPoison()
 end
 
 local function summonPoison()
-	if legs.Clicky() and mq.TLO.Me.ItemReady(legs) and mq.TLO.FindItemCount(poison)() < 20 then
-		local function stop() return not mq.TLO.Me.ItemReady(legs) end
+	if legs.Clicky() and mq.TLO.Me.ItemReady(legs)() and mq.TLO.FindItemCount(poison)() < 20 then
+		local function stop() return not mq.TLO.Me.ItemReady(legs)() end
 		mq.cmdf('/useitem "%s"', legs)
         print('\at[LeRogue] \aoClicking: \ay', legs)
         mq.delay(3000, stop)
