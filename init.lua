@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.4'
+local version = 'v1.1.5'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -518,10 +518,81 @@ local function pauseHide(val)
 	end
 end
 
+--------------------------Fetch corpse routine--------------------------------
+
+local playerToFetch
+local corpseName
+local bringBack
+local fetchLocation = {}
+local dropIt
+
+local function fetchCorpse(val)
+	if val then
+		playerToFetch = val:gsub("^%l", string.upper)
+	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'PC' then
+		playerToFetch = mq.TLO.Target.Name()
+	else
+		print('\at[LeRogue] \ayPlease target a player or specify a name')
+		return
+	end
+	corpseName = playerToFetch..'\'s corpse'
+	if mq.TLO.SpawnCount(corpseName)() > 0 then
+		print('\at[LeRogue] \ayTracking down ', corpseName)
+		fetchLocation.X = mq.TLO.Me.X()
+		fetchLocation.Y = mq.TLO.Me.Y()
+		fetchLocation.Z = mq.TLO.Me.Z()
+		updateSettings('hide', 'on')
+		mq.delay(500)
+		mq.cmdf('/nav spawn %s', corpseName)
+	else
+		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
+	end
+end
+
+local function pickUpCorpse()
+	print('\at[LeRogue] \ayI found ', corpseName)
+	mq.delay(250)
+	mq.cmdf('/target %s', corpseName)
+	mq.delay(250)
+	mq.cmd('/corpsedrag')
+	corpseName = nil
+	mq.delay(250)
+	bringBack = true
+end
+
+local function returnCorpse()
+	mq.cmdf('/nav locxyz %s, %s, %s', fetchLocation.X, fetchLocation.Y, fetchLocation.Z)
+	mq.delay(500)
+	print('\at[LeRogue] \ayBringing corpse back to ', playerToFetch)
+	bringBack = false
+	dropIt = true
+end
+
+local function dropCorpse()
+	local x = math.abs(mq.TLO.Me.X() - fetchLocation.X)
+	local y = math.abs(mq.TLO.Me.Y() - fetchLocation.Y)
+	local z = math.abs(mq.TLO.Me.Z() - fetchLocation.Z)
+	if x < 10 and y < 10 and z < 10 then
+		mq.cmd('/corpsedrop')
+		dropIt = false
+		print('\at[LeRogue] \ayDropping corpse')
+	end
+end
+
+
+----------------------------Handle events--------------------------------------
+
+local function noConsent(line)
+	print('\at[LeRogue] \ayI don\'t have consent do drag this corpse.')
+	bringBack = false
+end
+mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noConsent)
+
 ----------------------------Handle binds--------------------------------------
 
 local function binds(cmd, val)
 	if cmd == 'pause' then togglePause(val)
+	elseif cmd == 'fetchcorpse' then fetchCorpse(val)
 	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
@@ -581,5 +652,10 @@ while not terminate do
 
 		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
 		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
+
+		mq.doevents()
+		if corpseName ~= nil and mq.TLO.SpawnCount(corpseName)() > 0 and mq.TLO.Spawn(corpseName).Distance() < 10 then pickUpCorpse() end
+		if bringBack == true then returnCorpse() end
+		if dropIt == true then dropCorpse() end
 	end
 end

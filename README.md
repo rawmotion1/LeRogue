@@ -28,6 +28,8 @@ Unlike [MQ2Rogue](https://www.redguides.com/community/resources/mq2rogue.1084/ "
 -   Apply and summon poison, if desired
 -   Recast buffs like practiced reflexes
 
+**And as of v1.1.5 LeRogue.lua can now also pull corpses!**
+
 **Commands:**\
 `/lua run lerogue`
 `/lua stop lerogue`
@@ -54,6 +56,8 @@ Unlike [MQ2Rogue](https://www.redguides.com/community/resources/mq2rogue.1084/ "
 `/lr listclickies` — lists the clickies you've added
 
 `/lr minlevel x` — change min NPC lvl you'll use combat abilities on (default is 110)
+
+`/lr fetchcorpse (x)` — go fetch your target's corpse (or specify a name) and bring it back
 
 `/lr resetdefaults` — reset all settings to their default states
 `/lr help` — get a list of commands
