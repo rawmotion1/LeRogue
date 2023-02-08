@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.5'
+local version = 'v1.1.6'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -71,32 +71,43 @@ local function listCommands()
 	print('\at[LeRogue] \aw---- \atAll available commands \aw----')
 	print('\at[LeRogue] \ay \awType \ay/lr help \aw(or just \ay/lr\aw) to repeat this list')
 	print('\at[LeRogue] \ay \awType \ay/lr resetdefaults \aw to reset all settings')
+
 	print('\at[LeRogue] \ao Pausing the script:')
 	print('\at[LeRogue] \ay /lr pause \aw(toggles pause)')
 	print('\at[LeRogue] \ay /lr pause \agon\aw/\aroff\aw (turn pause on or off)')
+
 	print('\at[LeRogue] \ao Combat settings:')
 	print('\at[LeRogue] \ay /lr combat \agon\aw/\aroff\aw (uses combat abilities)')
 	print('\at[LeRogue] \ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
 	print('\at[LeRogue] \ay /lr dot \agon\aw/\aroff\aw (uses dots)')
 	print('\at[LeRogue] \ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
-	print('\at[LeRogue] \ao Auto hide settings:')
-	print('\at[LeRogue] \ay /lr hide \agon\aw/\aroff\aw (keeps you hidden)')
-	print('\at[LeRogue] \ay /lr pausehide x \aw(be visible for x seconds then resume)')
-	print('\at[LeRogue] \ao Defense settings:')
-	print('\at[LeRogue] \ay /lr stayalive \agon\aw/\aroff\aw (use defense abilities in emergency)')
-	print('\at[LeRogue] \ao Poison settings:')
-	print('\at[LeRogue] \ay /lr poison \agon\aw/\aroff\aw (reapplies poison when it\'s safe)')
-	print('\at[LeRogue] \ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
-	print('\at[LeRogue] \ao Combat routine clickies:')
-	print('\at[LeRogue] \ay /lr addclicky \aw(add clicky on cursor to routine)')
-	print('\at[LeRogue] \ay /lr removeclicky \aw(remove clicky on cursor from routine)')
-	print('\at[LeRogue] \ay /lr listclickies \aw(shows clickies you\'ve added)')
-	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
-	print('\at[LeRogue] \ay /lr minlevel x \aw(default is 110)')
+
 	print('\at[LeRogue] \aoBurn settings:')
 	print('\at[LeRogue] \ay /lr burn \aw(big burn on target)')
 	print('\at[LeRogue] \ay /lr glyph \agon\aw/\aroff\aw (uses power glyph during burn)')
 	print('\at[LeRogue] \ay /lr burnalways \aw(always use burns)')
+
+	print('\at[LeRogue] \ao Combat routine clickies:')
+	print('\at[LeRogue] \ay /lr addclicky \aw(add clicky on cursor to routine)')
+	print('\at[LeRogue] \ay /lr removeclicky \aw(remove clicky on cursor from routine)')
+	print('\at[LeRogue] \ay /lr listclickies \aw(shows clickies you\'ve added)')
+
+	print('\at[LeRogue] \ao Auto hide settings:')
+	print('\at[LeRogue] \ay /lr hide \agon\aw/\aroff\aw (keeps you hidden)')
+	print('\at[LeRogue] \ay /lr pausehide x \aw(be visible for x seconds then resume)')
+
+	print('\at[LeRogue] \ao Defense settings:')
+	print('\at[LeRogue] \ay /lr stayalive \agon\aw/\aroff\aw (use defense abilities in emergency)')
+
+	print('\at[LeRogue] \ao Poison settings:')
+	print('\at[LeRogue] \ay /lr poison \agon\aw/\aroff\aw (reapplies poison when it\'s safe)')
+	print('\at[LeRogue] \ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
+
+	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
+	print('\at[LeRogue] \ay /lr minlevel x \aw(default is 110)')
+
+	print('\at[LeRogue] \ao Fetch corpse:')
+	print('\at[LeRogue] \ay /lr fetchcorpse (name) or target \aw(pull a player\'s corpse)')
 end
 
 -------------------------Handle settings----------------------------------------
@@ -520,13 +531,18 @@ end
 
 --------------------------Fetch corpse routine--------------------------------
 
+local pickItUp
+local bringItBack
+local putItDown
 local playerToFetch
 local corpseName
-local bringBack
 local fetchLocation = {}
-local dropIt
 
 local function fetchCorpse(val)
+	if not goodToGo() or engaged() or mq.TLO.Me.XTarget() > 0 then
+		print('\at[LeRogue] \ayToo busy right now...')
+		return
+	end
 	if val then
 		playerToFetch = val:gsub("^%l", string.upper)
 	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'PC' then
@@ -536,55 +552,63 @@ local function fetchCorpse(val)
 		return
 	end
 	corpseName = playerToFetch..'\'s corpse'
-	if mq.TLO.SpawnCount(corpseName)() > 0 then
+	if mq.TLO.SpawnCount(corpseName)() == 0 then
+		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
+		return
+	else
 		print('\at[LeRogue] \ayTracking down ', corpseName)
 		fetchLocation.X = mq.TLO.Me.X()
 		fetchLocation.Y = mq.TLO.Me.Y()
 		fetchLocation.Z = mq.TLO.Me.Z()
 		updateSettings('hide', 'on')
-		mq.delay(500)
+		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
+			mq.cmd('/mqp on')
+		end
+		mq.delay(1000)
 		mq.cmdf('/nav spawn %s', corpseName)
-	else
-		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
+		pickItUp = true
 	end
 end
 
 local function pickUpCorpse()
+	pickItUp = false
 	print('\at[LeRogue] \ayI found ', corpseName)
-	mq.delay(250)
+	mq.delay(1000)
 	mq.cmdf('/target %s', corpseName)
-	mq.delay(250)
+	mq.delay(1000)
 	mq.cmd('/corpsedrag')
-	corpseName = nil
-	mq.delay(250)
-	bringBack = true
+	bringItBack = true
+	mq.delay(2000)
 end
 
 local function returnCorpse()
+	bringItBack = false
 	mq.cmdf('/nav locxyz %s, %s, %s', fetchLocation.X, fetchLocation.Y, fetchLocation.Z)
 	mq.delay(500)
-	print('\at[LeRogue] \ayBringing corpse back to ', playerToFetch)
-	bringBack = false
-	dropIt = true
+	print('\at[LeRogue] \ayBringing corpse back')
+	putItDown = true
 end
 
 local function dropCorpse()
+	putItDown = false
 	local x = math.abs(mq.TLO.Me.X() - fetchLocation.X)
 	local y = math.abs(mq.TLO.Me.Y() - fetchLocation.Y)
 	local z = math.abs(mq.TLO.Me.Z() - fetchLocation.Z)
 	if x < 10 and y < 10 and z < 10 then
+		mq.delay(1000)
 		mq.cmd('/corpsedrop')
-		dropIt = false
 		print('\at[LeRogue] \ayDropping corpse')
+		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
+			mq.cmd('/mqp off')
+		end
 	end
 end
-
 
 ----------------------------Handle events--------------------------------------
 
 local function noConsent(line)
 	print('\at[LeRogue] \ayI don\'t have consent do drag this corpse.')
-	bringBack = false
+	bringItBack = false
 end
 mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noConsent)
 
@@ -628,8 +652,13 @@ while not terminate do
 		mq.delay(30000, stop)
 	end
 	if pause == false then
+		mq.doevents()
 		local currentTime = os.time()
+
+		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
+		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
 		
+		--combat
 		if engaged() and rogSettings.combat == 'on' then doCombatAbilies() end
 		if engaged() and rogSettings.disc == 'on' then doDiscs() end
 		if engaged() and rogSettings.dot == 'on' then doDots() end
@@ -637,12 +666,14 @@ while not terminate do
 		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
 		if engaged() then doOther() end
 
+		--rebuff
 		if safeToCast() then 
 			reflexes() 
 			if rogSettings.poison == 'on' then applyPoison() end
 			if rogSettings.summon == 'on' then summonPoison() end
 		end
 
+		--autohide
 		if rogSettings.hide == 'on' and not engaged() then 
 			autoHide()
 		elseif rogSettings.hide == 'paused' and currentTime >= myTimer then
@@ -650,12 +681,10 @@ while not terminate do
 			print('\at[LeRogue] \agHide is back on')
 		end
 
-		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
-		if mq.TLO.Cursor.ID() == poison.ID() then mq.cmd('/autoinv') mq.delay(500) end
-
+		--fetch corpse
+		if pickItUp == true and goodToGo() and mq.TLO.SpawnCount(corpseName)() > 0 and notNil(mq.TLO.Spawn(corpseName).Distance()) < 10 then pickUpCorpse() end
 		mq.doevents()
-		if corpseName ~= nil and mq.TLO.SpawnCount(corpseName)() > 0 and mq.TLO.Spawn(corpseName).Distance() < 10 then pickUpCorpse() end
-		if bringBack == true then returnCorpse() end
-		if dropIt == true then dropCorpse() end
+		if bringItBack == true and goodToGo() then returnCorpse() end
+		if putItDown == true and goodToGo() then dropCorpse() end
 	end
 end
