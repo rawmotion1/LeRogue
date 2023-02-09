@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.6'
+local version = 'v1.1.7'
 local mq = require('mq')
 local rogSettings = {} -- initialize config tables
 local rogClickies = {}
@@ -106,8 +106,9 @@ local function listCommands()
 	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
 	print('\at[LeRogue] \ay /lr minlevel x \aw(default is 110)')
 
-	print('\at[LeRogue] \ao Fetch corpse:')
-	print('\at[LeRogue] \ay /lr fetchcorpse (name) or target \aw(pull a player\'s corpse)')
+	print('\at[LeRogue] \ao Pulling corpses:')
+	print('\at[LeRogue] \ay /lr fetchcorpse (name) or target \aw(find and bring it back)')
+	print('\at[LeRogue] \ay /lr bringcorpse (name) or target \aw(find and deliver to owner)')
 end
 
 -------------------------Handle settings----------------------------------------
@@ -531,22 +532,41 @@ end
 
 --------------------------Fetch corpse routine--------------------------------
 
+local bringOrFetch
 local pickItUp
 local bringItBack
 local putItDown
 local playerToFetch
+local bringID
 local corpseName
 local fetchLocation = {}
 
-local function fetchCorpse(val)
+local function fetchCorpse(val, dest)
+
 	if not goodToGo() or engaged() or mq.TLO.Me.XTarget() > 0 then
 		print('\at[LeRogue] \ayToo busy right now...')
 		return
 	end
+
 	if val then
 		playerToFetch = val:gsub("^%l", string.upper)
+		
+		if dest == 'bring' then --If using bring, check if player is in the zone
+			local function findPlayer(spawn)
+				return spawn.Type() == 'PC' and spawn.Name() == playerToFetch
+			end
+			local ids = mq.getFilteredSpawns(findPlayer)
+			if ids[1] == nil then
+				print('\at[LeRogue] \ayYou can only bringcorpse to players in the zone. Try /lr fetchcorpse instead.')
+				return
+			else 
+				bringID = ids[1].ID()
+			end 
+		end
+
 	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'PC' then
 		playerToFetch = mq.TLO.Target.Name()
+		bringID = mq.TLO.Target.ID()
 	else
 		print('\at[LeRogue] \ayPlease target a player or specify a name')
 		return
@@ -556,10 +576,13 @@ local function fetchCorpse(val)
 		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
 		return
 	else
+		bringOrFetch = dest
+		if bringOrFetch == 'fetch' then
+			fetchLocation.X = mq.TLO.Me.X()
+			fetchLocation.Y = mq.TLO.Me.Y()
+			fetchLocation.Z = mq.TLO.Me.Z()
+		end
 		print('\at[LeRogue] \ayTracking down ', corpseName)
-		fetchLocation.X = mq.TLO.Me.X()
-		fetchLocation.Y = mq.TLO.Me.Y()
-		fetchLocation.Z = mq.TLO.Me.Z()
 		updateSettings('hide', 'on')
 		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
 			mq.cmd('/mqp on')
@@ -583,18 +606,35 @@ end
 
 local function returnCorpse()
 	bringItBack = false
-	mq.cmdf('/nav locxyz %s, %s, %s', fetchLocation.X, fetchLocation.Y, fetchLocation.Z)
+	if bringOrFetch == 'fetch' then
+		mq.cmdf('/nav locxyz %s, %s, %s', fetchLocation.X, fetchLocation.Y, fetchLocation.Z)
+	elseif mq.TLO.Spawn(bringID)() ~= nil then
+		mq.cmdf('/nav id %s', bringID)
+	else
+		print('\at[LeRogue] \ayPlayer is no longer in the zone!')
+		return
+	end
 	mq.delay(500)
 	print('\at[LeRogue] \ayBringing corpse back')
 	putItDown = true
 end
 
-local function dropCorpse()
-	putItDown = false
-	local x = math.abs(mq.TLO.Me.X() - fetchLocation.X)
-	local y = math.abs(mq.TLO.Me.Y() - fetchLocation.Y)
-	local z = math.abs(mq.TLO.Me.Z() - fetchLocation.Z)
-	if x < 10 and y < 10 and z < 10 then
+local function dropCorpse()	
+	if bringOrFetch == 'fetch' then
+		local x = math.abs(mq.TLO.Me.X() - fetchLocation.X)
+		local y = math.abs(mq.TLO.Me.Y() - fetchLocation.Y)
+		local z = math.abs(mq.TLO.Me.Z() - fetchLocation.Z)
+		if x < 10 and y < 10 and z < 10 then
+			putItDown = false
+			mq.delay(1000)
+			mq.cmd('/corpsedrop')
+			print('\at[LeRogue] \ayDropping corpse')
+			if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
+				mq.cmd('/mqp off')
+			end
+		end
+	elseif mq.TLO.Spawn(bringID).Distance() < 10 then
+		putItDown = false
 		mq.delay(1000)
 		mq.cmd('/corpsedrop')
 		print('\at[LeRogue] \ayDropping corpse')
@@ -616,7 +656,8 @@ mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noCo
 
 local function binds(cmd, val)
 	if cmd == 'pause' then togglePause(val)
-	elseif cmd == 'fetchcorpse' then fetchCorpse(val)
+	elseif cmd == 'fetchcorpse' then fetchCorpse(val, 'fetch')
+	elseif cmd == 'bringcorpse' then fetchCorpse(val, 'bring')
 	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
