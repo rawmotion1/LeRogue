@@ -1,8 +1,14 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v1.1.7'
+local version = 'v2.0.0'
+--- @type Mq
 local mq = require('mq')
+--- @type ImGui
+require('ImGui')
+
+
 local rogSettings = {} -- initialize config tables
+local boolSettings = {}
 local rogClickies = {}
 local rogPath = 'LeRogueConfig.lua' -- name of config file in config folder
 
@@ -104,11 +110,11 @@ local function listCommands()
 	print('\at[LeRogue] \ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
 
 	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
-	print('\at[LeRogue] \ay /lr minlevel x \aw(default is 110)')
+	print('\at[LeRogue] \ay /lr minlevel \aox \aw(default is 110)')
 
 	print('\at[LeRogue] \ao Pulling corpses:')
-	print('\at[LeRogue] \ay /lr fetchcorpse (name) or target \aw(find and bring it back)')
-	print('\at[LeRogue] \ay /lr bringcorpse (name) or target \aw(find and deliver to owner)')
+	print('\at[LeRogue] \ay /lr fetchcorpse \aoname \ayor \aotarget \aw(find and bring it back)')
+	print('\at[LeRogue] \ay /lr bringcorpse \aoname \ayor \aotarget \aw(find and deliver to owner)')
 end
 
 -------------------------Handle settings----------------------------------------
@@ -159,6 +165,17 @@ local function setup()
 end
 setup()
 
+local function boolizeSettings()
+	for k,v in pairs(rogSettings) do
+		if v == 'on' then 
+			boolSettings[k] = true 
+		elseif v == 'off' then 
+			boolSettings[k] = false
+		end
+	end
+end
+boolizeSettings()
+
 -------------------------Misc functions----------------------------------------
 
 local function notNil(arg)
@@ -198,7 +215,7 @@ end
 
 ---------------------Add and remove clickes--------------------
 
-local function addClicky(cmd,val)
+local function addClicky()
 	local id = mq.TLO.Cursor
 	if id.ID() == nil then
 		print('\at[LeRogue] \ayPut a clicky on your cursor')
@@ -220,7 +237,7 @@ local function addClicky(cmd,val)
 	end
 end
 
-local function removeClicky(cmd,val)
+local function removeClicky()
 	local id = mq.TLO.Cursor
 	if id.ID() == nil then
 		print('\at[LeRogue] \ayPut a clicky on your cursor')
@@ -661,8 +678,8 @@ local function binds(cmd, val)
 	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
-	elseif cmd == 'addclicky' then addClicky(cmd, val) 
-	elseif cmd == 'removeclicky' then removeClicky(cmd, val)
+	elseif cmd == 'addclicky' then addClicky() 
+	elseif cmd == 'removeclicky' then removeClicky()
 	elseif cmd == 'listclickies' then listClickies()
 	elseif cmd == 'burn' then doBurn()
 	elseif cmd == nil or cmd == 'help' then listCommands()
@@ -679,9 +696,121 @@ local function binds(cmd, val)
 		print('\at[LeRogue] \ay Invalid command')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
 		print('\at[LeRogue] \ay Please use on/off')
-	else updateSettings(cmd, val) end
+	else updateSettings(cmd, val) boolizeSettings() end
 end
 mq.bind('/lr', binds)
+
+-----------------------------GUI----------------------------------------------
+
+local function boolSwitch()
+	for k,v in pairs(boolSettings) do
+		if boolSettings[k] == true and rogSettings[k] =='off' then
+			updateSettings(k,'on')
+		elseif boolSettings[k] == false and rogSettings[k] == 'on' then
+			updateSettings(k, 'off')
+		end
+	end
+end
+
+local lvlUpdated
+local Open, ShowUI = true, true
+local function buildLrWindow()
+	local update
+	ImGui.SetWindowSize(220, 455, ImGuiCond.Once) 
+	local x, y = ImGui.GetContentRegionAvail()
+	local buttonHalfWidth = (x / 2) - 4
+	local buttonThirdWidth = (x / 3) - 5
+
+    if ImGui.Button('Pause') then togglePause() end
+    ImGui.SameLine()
+    if pause == false then ImGui.TextColored(0, .75, 0, 1, 'Running') else ImGui.TextColored(.75, 0, 0, 1, 'Paused') end
+
+    ImGui.Separator()
+
+    boolSettings.combat, update = ImGui.Checkbox('Combat abilities', boolSettings.combat)
+	if update then boolSwitch() end
+
+    boolSettings.disc, update = ImGui.Checkbox('Rotating discs', boolSettings.disc)
+	if update then boolSwitch() end
+
+    boolSettings.dot, update = ImGui.Checkbox('DoTs', boolSettings.dot)
+	if update then boolSwitch() end
+
+    boolSettings.clickies, update = ImGui.Checkbox('Combat clickies', boolSettings.clickies)
+	if update then boolSwitch() end
+
+    if ImGui.Button('Add clicky', buttonThirdWidth, 0) then addClicky() end
+    ImGui.SameLine()
+    if ImGui.Button('Remove', buttonThirdWidth, 0) then removeClicky() end
+    ImGui.SameLine()
+    if ImGui.Button('List all', buttonThirdWidth, 0) then listClickies() end
+
+	ImGui.Separator()
+
+    boolSettings.glyph, update = ImGui.Checkbox('Use glyphs', boolSettings.glyph)
+	if update then boolSwitch() end
+
+    boolSettings.burnalways, update = ImGui.Checkbox('Always burn', boolSettings.burnalways)
+	if update then boolSwitch() end
+
+	ImGui.Separator()
+
+    boolSettings.stayalive, update = ImGui.Checkbox('Use defense', boolSettings.stayalive)
+	if update then boolSwitch() end
+
+    ImGui.Separator()
+
+    boolSettings.poison, update = ImGui.Checkbox('Apply poison', boolSettings.poison)
+	if update then boolSwitch() end
+
+    boolSettings.summon, update = ImGui.Checkbox('Summon poison', boolSettings.summon)
+	if update then boolSwitch() end
+    
+    ImGui.Separator()
+	
+    rogSettings.minlevel, update = ImGui.SliderInt('Min lvl', rogSettings.minlevel, 1, 120)
+	if update then lvlUpdated = true end
+	if lvlUpdated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then 
+		newMinLvl(rogSettings.minlevel) 
+		lvlUpdated = false
+	end
+
+    ImGui.Separator()
+
+    boolSettings.hide, update = ImGui.Checkbox('Auto-hide', boolSettings.hide)
+	if update then boolSwitch() end
+	ImGui.SameLine()
+	if mq.TLO.Me.Invis('SOS')() then 
+		ImGui.TextColored(0, .75, .75, 1, '\xee\xa3\xb4'..' Hidden') 
+	else
+		ImGui.TextColored(0, .75, .75, 1, '\xee\xa3\xb5'..' Visible') 
+	end
+
+    if ImGui.Button('Pause hide 20', buttonHalfWidth, 0) then pauseHide(20) end
+    ImGui.SameLine()
+    if ImGui.Button('Pause hide 60', buttonHalfWidth, 0) then pauseHide(60) end
+
+    ImGui.Separator()
+	
+	
+    if ImGui.Button('Fetch corpse', buttonHalfWidth, 0) then fetchCorpse(val, 'fetch') end
+	
+	ImGui.SameLine()
+	ImGui.PushStyleColor(ImGuiCol.Button, .61, .0, .0, .75)
+	if ImGui.Button('Burn now', buttonHalfWidth, 0) then doBurn() end
+	ImGui.PopStyleColor()
+	
+end
+
+local function lrWindow()
+    Open, ShowUI = ImGui.Begin('LeRogue', Open)
+    if ShowUI then
+        buildLrWindow()
+    end
+    ImGui.End()
+end
+
+mq.imgui.init('LeRogue', lrWindow)
 
 ----------------------------Start loop----------------------------------------
 
@@ -727,5 +856,7 @@ while not terminate do
 		mq.doevents()
 		if bringItBack == true and goodToGo() then returnCorpse() end
 		if putItDown == true and goodToGo() then dropCorpse() end
+		
 	end
+	if not Open then return end
 end
