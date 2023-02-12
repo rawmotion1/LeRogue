@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.0'
+local version = 'v2.0.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -126,7 +126,6 @@ end
 local function updateSettings(cmd, val)
 	rogSettings[cmd] = val
 	print('\at[LeRogue] \aoTurning \ay', cmd, ' \ag ', color(val))
-	mq.delay(250)
 	saveSettings()
 end
 
