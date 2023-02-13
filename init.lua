@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.1'
+local version = 'v2.0.2'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -711,6 +711,7 @@ local function boolSwitch()
 	end
 end
 
+local burnNow
 local lvlUpdated
 local Open, ShowUI = true, true
 local function buildLrWindow()
@@ -796,7 +797,7 @@ local function buildLrWindow()
 	
 	ImGui.SameLine()
 	ImGui.PushStyleColor(ImGuiCol.Button, .61, .0, .0, .75)
-	if ImGui.Button('Burn now', buttonHalfWidth, 0) then doBurn() end
+	if ImGui.Button('Burn now', buttonHalfWidth, 0) then burnNow = true end
 	ImGui.PopStyleColor()
 	
 end
@@ -834,6 +835,11 @@ while not terminate do
 		if engaged() and rogSettings.clickies == 'on' then doClickies() end
 		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
 		if engaged() then doOther() end
+
+		if burnNow == true then 
+			doBurn()
+			burnNow = false
+		end
 
 		--rebuff
 		if safeToCast() then 
