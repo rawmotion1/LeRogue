@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.2'
+local version = 'v2.0.3'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -113,8 +113,8 @@ local function listCommands()
 	print('\at[LeRogue] \ay /lr minlevel \aox \aw(default is 110)')
 
 	print('\at[LeRogue] \ao Pulling corpses:')
-	print('\at[LeRogue] \ay /lr fetchcorpse \aoname \ayor \aotarget \aw(find and bring it back)')
-	print('\at[LeRogue] \ay /lr bringcorpse \aoname \ayor \aotarget \aw(find and deliver to owner)')
+	print('\at[LeRogue] \ay /lr dragcorpses \agon\aw/\aroff\aw (automatically drags groupmember corpses to your campfire)')
+	print('\at[LeRogue] \ay /lr dragcorpse \aoname \ayor \aotarget \aw(find and corpse)')
 end
 
 -------------------------Handle settings----------------------------------------
@@ -140,7 +140,8 @@ local function setDefaults(s)
 	if s == 'all' or rogSettings.summon == nil then rogSettings.summon = 'on' end
 	if s == 'all' or rogSettings.stayalive == nil then rogSettings.stayalive = 'on' end
 	if s == 'all' or rogSettings.glyph == nil then rogSettings.glyph = 'off' end
-	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end 
+	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end
+	if s == 'all' or rogSettings.dragcorpses == nil then rogSettings.dragcorpses = 'on' end 
 	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 110 end
 	for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",color(v)) end
 	saveSettings()
@@ -548,116 +549,131 @@ end
 
 --------------------------Fetch corpse routine--------------------------------
 
-local bringOrFetch
-local pickItUp
-local bringItBack
-local putItDown
-local playerToFetch
-local bringID
-local corpseName
-local fetchLocation = {}
+local campfireUp
+local campLocation = {}
+local corpseLocation = {}
 
-local function fetchCorpse(val, dest)
+local function setCampfireLoc()
+	campLocation.x = mq.TLO.Me.Fellowship.CampfireX()
+	campLocation.y = mq.TLO.Me.Fellowship.CampfireY()
+	campLocation.z = mq.TLO.Me.Fellowship.CampfireZ()
+end
 
+local function dragCorpse(id, name)
+	local loc = 'campfire'
+	if mq.TLO.Navigation.PathExists('id %s', id) then
+		print('\at[LeRogue] \agGoing to pull ', name)
+		updateSettings('hide', 'on')
+		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
+			print('\at[LeRogue] \ayPausing macro')
+			mq.cmd('/squelch /mqp on')
+		end
+		if not campfireUp then
+			loc = 'your spot'
+			campLocation.x = mq.TLO.Me.X()
+			campLocation.y = mq.TLO.Me.Y()
+			campLocation.z = mq.TLO.Me.Z()
+		end
+		mq.delay(2000)
+		mq.cmdf('/squelch /nav id %s', id)
+	else
+		print('\at[LeRogue] \ayCan\'t find path to ', name)
+		return
+	end
+	while mq.TLO.Navigation.Active() do
+		if pause == true then mq.cmd('/squelch /nav stop') break end
+		if mq.TLO.Spawn(id).Distance() < 100 and mq.TLO.Spawn(id).LineOfSight() then
+			mq.cmd('/squelch /nav stop')
+			mq.cmdf('/target %s', name)
+			mq.cmd('/corpsedrag')
+			break
+		end
+	end
+	mq.cmdf('/squelch /nav locxyz %s, %s, %s', campLocation.x, campLocation.y, campLocation.z)
+	print('\at[LeRogue] \agBringing corpse back to '..loc)
+	while mq.TLO.Navigation.Active() do
+		if pause == true then mq.cmd('/squelch /nav stop') break end
+		local x = math.abs(mq.TLO.Me.X() - campLocation.x)
+		local y = math.abs(mq.TLO.Me.Y() - campLocation.y)
+		local z = math.abs(mq.TLO.Me.Z() - campLocation.z)
+		if x < 10 and y < 10 and z < 10 then
+			mq.cmd('/squelch /nav stop')
+			mq.delay(500)
+			mq.cmd('/corpsedrop')
+			break
+		end
+	end
+end
+
+local function campCorpseDist(id)
+	corpseLocation.x = mq.TLO.Spawn(id).X()
+	corpseLocation.y = mq.TLO.Spawn(id).Y()
+	corpseLocation.z = mq.TLO.Spawn(id).Z()
+	if not campfireUp then
+		campLocation.x = mq.TLO.Me.X()
+		campLocation.y = mq.TLO.Me.Y()
+		campLocation.z = mq.TLO.Me.Z()
+	end
+	local x = math.abs(campLocation.x - corpseLocation.x)
+	local y = math.abs(campLocation.y - corpseLocation.y)
+	local z = math.abs(campLocation.z - corpseLocation.z)
+	if x > 50 or y > 50 or z > 50 then
+		return true
+	end
+end
+
+local function checkForDead(n)
+	local groupMembers = mq.TLO.Group.Members()
+	local pcCorpses = mq.TLO.SpawnCount('pccorpse')()
+	local found = false
+	if groupMembers > 0 and pcCorpses > 0 then
+		for i = 1, groupMembers do
+			local groupMember = mq.TLO.Group.Member(i).Name()
+			local corpseName = groupMember..'\'s corpse'
+			for j = 1, pcCorpses do
+				if pause == true then break end
+				local pcCorpse = mq.TLO.NearestSpawn(j..',pccorpse').CleanName()
+				local corpseID = mq.TLO.NearestSpawn(j..',pccorpse').ID()
+				if pcCorpse == corpseName then
+					found = true
+					if campCorpseDist(corpseID) then
+						dragCorpse(corpseID, corpseName)
+					end
+				end
+			end
+		end
+	end
+	if n == 'notify' and not found then
+		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
+	end
+end
+
+local function manualDragCorpse(val)
 	if not goodToGo() or engaged() or mq.TLO.Me.XTarget() > 0 then
 		print('\at[LeRogue] \ayToo busy right now...')
 		return
 	end
-
+	local corpseName
+	local corpseID
 	if val then
-		playerToFetch = val:gsub("^%l", string.upper)
-		
-		if dest == 'bring' then --If using bring, check if player is in the zone
-			local function findPlayer(spawn)
-				return spawn.Type() == 'PC' and spawn.Name() == playerToFetch
-			end
-			local ids = mq.getFilteredSpawns(findPlayer)
-			if ids[1] == nil then
-				print('\at[LeRogue] \ayYou can only bringcorpse to players in the zone. Try /lr fetchcorpse instead.')
-				return
-			else 
-				bringID = ids[1].ID()
-			end 
-		end
-
+		corpseName = val:gsub("^%l", string.upper)..'\'s corpse'
 	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'PC' then
-		playerToFetch = mq.TLO.Target.Name()
-		bringID = mq.TLO.Target.ID()
+		corpseName = mq.TLO.Target.Name()..'\'s corpse'
+	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'Corpse' then
+		corpseID = mq.TLO.Target.ID()
+		corpseName = mq.TLO.Target.CleanName()
+		dragCorpse(corpseID, corpseName)
+		return
 	else
-		print('\at[LeRogue] \ayPlease target a player or specify a name')
+		checkForDead('notify')
 		return
 	end
-	corpseName = playerToFetch..'\'s corpse'
 	if mq.TLO.SpawnCount(corpseName)() == 0 then
 		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
 		return
-	else
-		bringOrFetch = dest
-		if bringOrFetch == 'fetch' then
-			fetchLocation.X = mq.TLO.Me.X()
-			fetchLocation.Y = mq.TLO.Me.Y()
-			fetchLocation.Z = mq.TLO.Me.Z()
-		end
-		print('\at[LeRogue] \ayTracking down ', corpseName)
-		updateSettings('hide', 'on')
-		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
-			mq.cmd('/mqp on')
-		end
-		mq.delay(1000)
-		mq.cmdf('/nav spawn %s', corpseName)
-		pickItUp = true
 	end
-end
-
-local function pickUpCorpse()
-	pickItUp = false
-	print('\at[LeRogue] \ayI found ', corpseName)
-	mq.delay(1000)
-	mq.cmdf('/target %s', corpseName)
-	mq.delay(1000)
-	mq.cmd('/corpsedrag')
-	bringItBack = true
-	mq.delay(2000)
-end
-
-local function returnCorpse()
-	bringItBack = false
-	if bringOrFetch == 'fetch' then
-		mq.cmdf('/nav locxyz %s, %s, %s', fetchLocation.X, fetchLocation.Y, fetchLocation.Z)
-	elseif mq.TLO.Spawn(bringID)() ~= nil then
-		mq.cmdf('/nav id %s', bringID)
-	else
-		print('\at[LeRogue] \ayPlayer is no longer in the zone!')
-		return
-	end
-	mq.delay(500)
-	print('\at[LeRogue] \ayBringing corpse back')
-	putItDown = true
-end
-
-local function dropCorpse()	
-	if bringOrFetch == 'fetch' then
-		local x = math.abs(mq.TLO.Me.X() - fetchLocation.X)
-		local y = math.abs(mq.TLO.Me.Y() - fetchLocation.Y)
-		local z = math.abs(mq.TLO.Me.Z() - fetchLocation.Z)
-		if x < 10 and y < 10 and z < 10 then
-			putItDown = false
-			mq.delay(1000)
-			mq.cmd('/corpsedrop')
-			print('\at[LeRogue] \ayDropping corpse')
-			if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
-				mq.cmd('/mqp off')
-			end
-		end
-	elseif mq.TLO.Spawn(bringID).Distance() < 10 then
-		putItDown = false
-		mq.delay(1000)
-		mq.cmd('/corpsedrop')
-		print('\at[LeRogue] \ayDropping corpse')
-		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
-			mq.cmd('/mqp off')
-		end
-	end
+	corpseID = mq.TLO.NearestSpawn(corpseName).ID()
+	dragCorpse(corpseID, corpseName)
 end
 
 ----------------------------Handle events--------------------------------------
@@ -672,8 +688,7 @@ mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noCo
 
 local function binds(cmd, val)
 	if cmd == 'pause' then togglePause(val)
-	elseif cmd == 'fetchcorpse' then fetchCorpse(val, 'fetch')
-	elseif cmd == 'bringcorpse' then fetchCorpse(val, 'bring')
+	elseif cmd == 'dragcorpse' then manualDragCorpse(val)
 	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
@@ -691,6 +706,7 @@ local function binds(cmd, val)
 		and cmd ~= 'summon' 
 		and cmd ~= 'stayalive'
 		and cmd ~= 'glyph' 
+		and cmd ~= 'dragcorpses'
 		and cmd ~= 'burnalways' then
 		print('\at[LeRogue] \ay Invalid command')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
@@ -712,18 +728,19 @@ local function boolSwitch()
 end
 
 local burnNow
+local dragNow
 local lvlUpdated
 local Open, ShowUI = true, true
 local function buildLrWindow()
 	local update
-	ImGui.SetWindowSize(220, 455, ImGuiCond.Once) 
+	ImGui.SetWindowSize(220, 480, ImGuiCond.Once) 
 	local x, y = ImGui.GetContentRegionAvail()
 	local buttonHalfWidth = (x / 2) - 4
 	local buttonThirdWidth = (x / 3) - 5
 
     if ImGui.Button('Pause') then togglePause() end
     ImGui.SameLine()
-    if pause == false then ImGui.TextColored(0, .75, 0, 1, 'Running') else ImGui.TextColored(.75, 0, 0, 1, 'Paused') end
+    if pause == false then ImGui.TextColored(0, .75, 0, 1, 'Running '..version) else ImGui.TextColored(.75, 0, 0, 1, 'Paused') end
 
     ImGui.Separator()
 
@@ -792,8 +809,14 @@ local function buildLrWindow()
 
     ImGui.Separator()
 	
-	
-    if ImGui.Button('Fetch corpse', buttonHalfWidth, 0) then fetchCorpse(val, 'fetch') end
+	boolSettings.dragcorpses, update = ImGui.Checkbox('Auto drag corpses', boolSettings.dragcorpses)
+	if update then boolSwitch() end
+	ImGui.SameLine()
+	ImGui.Text('\xee\xa2\x8f')
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Will automatically drag group members' corpses if you have a campfire set.")
+	end
+    if ImGui.Button('Drag corpse', buttonHalfWidth, 0) then dragNow = true end
 	
 	ImGui.SameLine()
 	ImGui.PushStyleColor(ImGuiCol.Button, .61, .0, .0, .75)
@@ -835,11 +858,7 @@ while not terminate do
 		if engaged() and rogSettings.clickies == 'on' then doClickies() end
 		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
 		if engaged() then doOther() end
-
-		if burnNow == true then 
-			doBurn()
-			burnNow = false
-		end
+		if burnNow == true then doBurn() burnNow = false end
 
 		--rebuff
 		if safeToCast() then 
@@ -856,11 +875,13 @@ while not terminate do
 			print('\at[LeRogue] \agHide is back on')
 		end
 
-		--fetch corpse
-		if pickItUp == true and goodToGo() and mq.TLO.SpawnCount(corpseName)() > 0 and notNil(mq.TLO.Spawn(corpseName).Distance()) < 10 then pickUpCorpse() end
-		mq.doevents()
-		if bringItBack == true and goodToGo() then returnCorpse() end
-		if putItDown == true and goodToGo() then dropCorpse() end
+		--corpse pulling
+		if rogSettings.dragcorpses == 'on' and campfireUp then checkForDead() end
+		if mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone() then
+			campfireUp = true
+			setCampfireLoc()
+		else campfireUp = false	end
+		if dragNow == true then manualDragCorpse() dragNow = false end
 		
 	end
 	if not Open then return end
