@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.3'
+local version = 'v2.0.4'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -549,18 +549,12 @@ end
 
 --------------------------Fetch corpse routine--------------------------------
 
-local campfireUp
-local campLocation = {}
+local campUp
+local where
+local returnLoc = {}
 local corpseLocation = {}
 
-local function setCampfireLoc()
-	campLocation.x = mq.TLO.Me.Fellowship.CampfireX()
-	campLocation.y = mq.TLO.Me.Fellowship.CampfireY()
-	campLocation.z = mq.TLO.Me.Fellowship.CampfireZ()
-end
-
 local function dragCorpse(id, name)
-	local loc = 'campfire'
 	if mq.TLO.Navigation.PathExists('id %s', id) then
 		print('\at[LeRogue] \agGoing to pull ', name)
 		updateSettings('hide', 'on')
@@ -568,20 +562,15 @@ local function dragCorpse(id, name)
 			print('\at[LeRogue] \ayPausing macro')
 			mq.cmd('/squelch /mqp on')
 		end
-		if not campfireUp then
-			loc = 'your spot'
-			campLocation.x = mq.TLO.Me.X()
-			campLocation.y = mq.TLO.Me.Y()
-			campLocation.z = mq.TLO.Me.Z()
-		end
+
 		mq.delay(2000)
 		mq.cmdf('/squelch /nav id %s', id)
 	else
 		print('\at[LeRogue] \ayCan\'t find path to ', name)
 		return
 	end
+
 	while mq.TLO.Navigation.Active() do
-		if pause == true then mq.cmd('/squelch /nav stop') break end
 		if mq.TLO.Spawn(id).Distance() < 100 and mq.TLO.Spawn(id).LineOfSight() then
 			mq.cmd('/squelch /nav stop')
 			mq.cmdf('/target %s', name)
@@ -589,13 +578,13 @@ local function dragCorpse(id, name)
 			break
 		end
 	end
-	mq.cmdf('/squelch /nav locxyz %s, %s, %s', campLocation.x, campLocation.y, campLocation.z)
-	print('\at[LeRogue] \agBringing corpse back to '..loc)
+
+	mq.cmdf('/squelch /nav locxyz %s, %s, %s', returnLoc.x, returnLoc.y, returnLoc.z)
+	print('\at[LeRogue] \agBringing corpse back to your ', where)
 	while mq.TLO.Navigation.Active() do
-		if pause == true then mq.cmd('/squelch /nav stop') break end
-		local x = math.abs(mq.TLO.Me.X() - campLocation.x)
-		local y = math.abs(mq.TLO.Me.Y() - campLocation.y)
-		local z = math.abs(mq.TLO.Me.Z() - campLocation.z)
+		local x = math.abs(mq.TLO.Me.X() - returnLoc.x)
+		local y = math.abs(mq.TLO.Me.Y() - returnLoc.y)
+		local z = math.abs(mq.TLO.Me.Z() - returnLoc.z)
 		if x < 10 and y < 10 and z < 10 then
 			mq.cmd('/squelch /nav stop')
 			mq.delay(500)
@@ -603,20 +592,39 @@ local function dragCorpse(id, name)
 			break
 		end
 	end
+	if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
+		print('\at[LeRogue] \ayUnpausing macro')
+		mq.cmd('/squelch /mqp off')
+	end
+end
+
+local function setLoc()
+	if mq.TLO.Macro.Variable('ReturnToCamp')() == 1 then
+		returnLoc.x = mq.TLO.Macro.Variable('CampXLoc')()
+		returnLoc.y = mq.TLO.Macro.Variable('CampYLoc')()
+		returnLoc.z = mq.TLO.Macro.Variable('CampZLoc')()
+		where = 'Kissassist camp'
+	elseif mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone() then
+		returnLoc.x = mq.TLO.Me.Fellowship.CampfireX()
+		returnLoc.y = mq.TLO.Me.Fellowship.CampfireY()
+		returnLoc.z = mq.TLO.Me.Fellowship.CampfireZ()
+		where = 'campfire'
+	else
+		returnLoc.x = mq.TLO.Me.X()
+		returnLoc.y = mq.TLO.Me.Y()
+		returnLoc.z = mq.TLO.Me.Z()
+		where = 'starting location'
+	end
 end
 
 local function campCorpseDist(id)
 	corpseLocation.x = mq.TLO.Spawn(id).X()
 	corpseLocation.y = mq.TLO.Spawn(id).Y()
 	corpseLocation.z = mq.TLO.Spawn(id).Z()
-	if not campfireUp then
-		campLocation.x = mq.TLO.Me.X()
-		campLocation.y = mq.TLO.Me.Y()
-		campLocation.z = mq.TLO.Me.Z()
-	end
-	local x = math.abs(campLocation.x - corpseLocation.x)
-	local y = math.abs(campLocation.y - corpseLocation.y)
-	local z = math.abs(campLocation.z - corpseLocation.z)
+	setLoc()
+	local x = math.abs(returnLoc.x - corpseLocation.x)
+	local y = math.abs(returnLoc.y - corpseLocation.y)
+	local z = math.abs(returnLoc.z - corpseLocation.z)
 	if x > 50 or y > 50 or z > 50 then
 		return true
 	end
@@ -631,7 +639,6 @@ local function checkForDead(n)
 			local groupMember = mq.TLO.Group.Member(i).Name()
 			local corpseName = groupMember..'\'s corpse'
 			for j = 1, pcCorpses do
-				if pause == true then break end
 				local pcCorpse = mq.TLO.NearestSpawn(j..',pccorpse').CleanName()
 				local corpseID = mq.TLO.NearestSpawn(j..',pccorpse').ID()
 				if pcCorpse == corpseName then
@@ -653,6 +660,7 @@ local function manualDragCorpse(val)
 		print('\at[LeRogue] \ayToo busy right now...')
 		return
 	end
+	
 	local corpseName
 	local corpseID
 	if val then
@@ -662,8 +670,6 @@ local function manualDragCorpse(val)
 	elseif mq.TLO.Target.Name() and mq.TLO.Target.Type() == 'Corpse' then
 		corpseID = mq.TLO.Target.ID()
 		corpseName = mq.TLO.Target.CleanName()
-		dragCorpse(corpseID, corpseName)
-		return
 	else
 		checkForDead('notify')
 		return
@@ -673,7 +679,11 @@ local function manualDragCorpse(val)
 		return
 	end
 	corpseID = mq.TLO.NearestSpawn(corpseName).ID()
-	dragCorpse(corpseID, corpseName)
+	if campCorpseDist(corpseID) then
+		dragCorpse(corpseID, corpseName)
+	else
+		print('\at[LeRogue] \ayLooks like that corpse is already at camp')
+	end
 end
 
 ----------------------------Handle events--------------------------------------
@@ -876,11 +886,12 @@ while not terminate do
 		end
 
 		--corpse pulling
-		if rogSettings.dragcorpses == 'on' and campfireUp then checkForDead() end
-		if mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone() then
-			campfireUp = true
-			setCampfireLoc()
-		else campfireUp = false	end
+		if mq.TLO.Macro.Variable('ReturnToCamp')() == 1 or (mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone()) then
+			campUp = true
+		else
+			campUp = false
+		end
+		if rogSettings.dragcorpses == 'on' and campUp == true then checkForDead() end
 		if dragNow == true then manualDragCorpse() dragNow = false end
 		
 	end

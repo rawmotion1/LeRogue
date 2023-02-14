@@ -31,36 +31,38 @@ Unlike [MQ2Rogue](https://www.redguides.com/community/resources/mq2rogue.1084/ "
 **And as of v1.1.5 LeRogue.lua can now also pull corpses!**
 
 **Commands:**\
-`/lua run lerogue`
+`/lua run lerogue`\
 `/lua stop lerogue`
 
 `/lr pause` — toggles pause\
-`/lr pause on/off` — explicitly turns pause on or off\
+`/lr pause on/off` — explicitly turns pause on or off
 
 `/lr combat on/off` — enables/disables combat abilities\
 `/lr disc on/off` — enables/disables rotating discs\
 `/lr dot on/off` — enables/disables DoTs\
-`/lr clickies on/off` — enables/disables using clickies in combat\
+`/lr clickies on/off` — enables/disables using clickies in combat
 
 `/lr hide on/off` — enables/disables auto hide/sneak\
-`/lr pausehide x` — turn off autohide for x seconds, then resume\
+`/lr pausehide x` — turn off autohide for x seconds, then resume
 
-`/lr stayalive on/off` — when on, will use a series of defensive abilities to keep you from dying\
+`/lr stayalive on/off` — when on, will use a series of defensive abilities to keep you from dying
 
 `/lr glyph on/off` — use power glyph during burn\
 `/lr burn` — do a big burn\
-`/lr burnalways on/of` — do a big burn whenver you're in combat\
+`/lr burnalways on/of` — do a big burn whenver you're in combat
 
 `/lr addclicky` — adds a clicky currently on your cursor to your combat routine\
 `/lr removeclicky` — removes a clicky currently on your cursor from your combat routine\
-`/lr listclickies` — lists the clickies you've added\
+`/lr listclickies` — lists the clickies you've added
 
-`/lr minlevel x` — change min NPC lvl you'll use combat abilities on (default is 110)\
+`/lr minlevel x` — change min NPC lvl you'll use combat abilities on (default is 110)
 
-`/lr fetchcorpse (x)` — go fetch your target's corpse (or specify a name) and bring it back\
-`/lr bringcorpse (x)` — go fetch your target's corpse (or specify a name) and deliver it to its owner\
+`/lr dragcorpses on/off` — Automatically search for and drag group member corpses whenever someone dies\
+`/lr dragcorpse (name) or (target)` — Specify a name, target a player, or target a corpse to drag. They don't have to be a group member. If you don't specify a player, it will look for any group member's corpse.
+
+When dragging corpses, it will first check if you have a Kissassist camp set, then check if you have a campfire set. If you have neither, it will pull corpses back to your current location.
 
 `/lr resetdefaults` — reset all settings to their default states\
-`/lr help` — get a list of commands\
+`/lr help` — get a list of commands
 
 Settings are saved in `config\LeRogueConfig.lua`
