@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.4'
+local version = 'v2.0.5'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -571,6 +571,7 @@ local function dragCorpse(id, name)
 	end
 
 	while mq.TLO.Navigation.Active() do
+		if pause == true then mq.cmd('/squelch /nav stop') break end
 		if mq.TLO.Spawn(id).Distance() < 100 and mq.TLO.Spawn(id).LineOfSight() then
 			mq.cmd('/squelch /nav stop')
 			mq.cmdf('/target %s', name)
@@ -582,6 +583,7 @@ local function dragCorpse(id, name)
 	mq.cmdf('/squelch /nav locxyz %s, %s, %s', returnLoc.x, returnLoc.y, returnLoc.z)
 	print('\at[LeRogue] \agBringing corpse back to your ', where)
 	while mq.TLO.Navigation.Active() do
+		if pause == true then mq.cmd('/squelch /nav stop') break end
 		local x = math.abs(mq.TLO.Me.X() - returnLoc.x)
 		local y = math.abs(mq.TLO.Me.Y() - returnLoc.y)
 		local z = math.abs(mq.TLO.Me.Z() - returnLoc.z)
@@ -636,9 +638,11 @@ local function checkForDead(n)
 	local found = false
 	if groupMembers > 0 and pcCorpses > 0 then
 		for i = 1, groupMembers do
+			if pause == true then break end
 			local groupMember = mq.TLO.Group.Member(i).Name()
 			local corpseName = groupMember..'\'s corpse'
 			for j = 1, pcCorpses do
+				if pause == true then break end
 				local pcCorpse = mq.TLO.NearestSpawn(j..',pccorpse').CleanName()
 				local corpseID = mq.TLO.NearestSpawn(j..',pccorpse').ID()
 				if pcCorpse == corpseName then
