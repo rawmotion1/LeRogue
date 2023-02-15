@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.6'
+local version = 'v2.0.7'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -560,7 +560,7 @@ local returnLoc = {}
 local corpseLocation = {}
 
 local function dragCorpse(id, name)
-	if mq.TLO.Navigation.PathExists('id %s', id)() then
+	if mq.TLO.Navigation.PathExists('id '..id)() then
 		print('\at[LeRogue] \agGoing to pull ', name)
 		updateSettings('hide', 'on')
 		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
@@ -658,7 +658,7 @@ local function checkForDead(n)
 				if pcCorpse == corpseName then
 					found = true
 					if campCorpseDist(corpseID) then
-						if mq.TLO.Navigation.PathExists('id %s', id)() then
+						if mq.TLO.Navigation.PathExists('id '..corpseID)() then
 							dragCorpse(corpseID, corpseName)
 						else 
 							print('\at[LeRogue] \ayCan\'t find path to ', corpseName)
@@ -700,6 +700,7 @@ local function manualDragCorpse(val)
 	end
 	corpseID = mq.TLO.NearestSpawn(corpseName).ID()
 	if campCorpseDist(corpseID) then
+		
 		dragCorpse(corpseID, corpseName)
 	else
 		print('\at[LeRogue] \ayLooks like that corpse is already at camp')
