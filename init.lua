@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.5'
+local version = 'v2.0.6'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -113,7 +113,7 @@ local function listCommands()
 	print('\at[LeRogue] \ay /lr minlevel \aox \aw(default is 110)')
 
 	print('\at[LeRogue] \ao Pulling corpses:')
-	print('\at[LeRogue] \ay /lr dragcorpses \agon\aw/\aroff\aw (automatically drags groupmember corpses to your campfire)')
+	print('\at[LeRogue] \ay /lr dragcorpses \agon\aw/\aroff\aw (automatically drags group corpses if you have a camp set)')
 	print('\at[LeRogue] \ay /lr dragcorpse \aoname \ayor \aotarget \aw(find and corpse)')
 end
 
@@ -231,7 +231,6 @@ local function addClicky()
 			end
 		end
 		table.insert(rogClickies, id.ID())
-		mq.delay(250)
 		saveSettings()
 		print('\at[LeRogue] \ayAdded clicky: \ag', id.Name())
 	end
@@ -249,7 +248,6 @@ local function removeClicky()
 		for k,v in pairs(rogClickies) do
 			if v == id.ID() then
 				rogClickies[k] = nil
-				mq.delay(250)
 				saveSettings()
 				print('\at[LeRogue] \ayClicky removed')	
 			end
@@ -547,6 +545,13 @@ local function pauseHide(val)
 	end
 end
 
+----------------------------Define events--------------------------------------
+local consent
+local function noConsent(line)
+	print('\at[LeRogue] \ayI don\'t have consent do drag this corpse.')
+	consent = false
+end
+mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noConsent)
 --------------------------Fetch corpse routine--------------------------------
 
 local campUp
@@ -555,7 +560,7 @@ local returnLoc = {}
 local corpseLocation = {}
 
 local function dragCorpse(id, name)
-	if mq.TLO.Navigation.PathExists('id %s', id) then
+	if mq.TLO.Navigation.PathExists('id %s', id)() then
 		print('\at[LeRogue] \agGoing to pull ', name)
 		updateSettings('hide', 'on')
 		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
@@ -572,13 +577,18 @@ local function dragCorpse(id, name)
 
 	while mq.TLO.Navigation.Active() do
 		if pause == true then mq.cmd('/squelch /nav stop') break end
-		if mq.TLO.Spawn(id).Distance() < 100 and mq.TLO.Spawn(id).LineOfSight() then
+		if mq.TLO.Spawn(id).Distance() < 75 and mq.TLO.Spawn(id).LineOfSight() then
 			mq.cmd('/squelch /nav stop')
 			mq.cmdf('/target %s', name)
 			mq.cmd('/corpsedrag')
 			break
 		end
 	end
+	
+	consent = true
+	mq.delay(2000)
+	mq.doevents()
+	if consent == false then return end
 
 	mq.cmdf('/squelch /nav locxyz %s, %s, %s', returnLoc.x, returnLoc.y, returnLoc.z)
 	print('\at[LeRogue] \agBringing corpse back to your ', where)
@@ -589,7 +599,7 @@ local function dragCorpse(id, name)
 		local z = math.abs(mq.TLO.Me.Z() - returnLoc.z)
 		if x < 10 and y < 10 and z < 10 then
 			mq.cmd('/squelch /nav stop')
-			mq.delay(500)
+			mq.delay(1000)
 			mq.cmd('/corpsedrop')
 			break
 		end
@@ -648,7 +658,13 @@ local function checkForDead(n)
 				if pcCorpse == corpseName then
 					found = true
 					if campCorpseDist(corpseID) then
-						dragCorpse(corpseID, corpseName)
+						if mq.TLO.Navigation.PathExists('id %s', id)() then
+							dragCorpse(corpseID, corpseName)
+						else 
+							print('\at[LeRogue] \ayCan\'t find path to ', corpseName)
+							print('\at[LeRogue] \ayTurning auto-drag off to avoid loop')
+							updateSettings('dragcorpses', 'off') boolizeSettings()
+						end
 					end
 				end
 			end
@@ -689,14 +705,6 @@ local function manualDragCorpse(val)
 		print('\at[LeRogue] \ayLooks like that corpse is already at camp')
 	end
 end
-
-----------------------------Handle events--------------------------------------
-
-local function noConsent(line)
-	print('\at[LeRogue] \ayI don\'t have consent do drag this corpse.')
-	bringItBack = false
-end
-mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noConsent)
 
 ----------------------------Handle binds--------------------------------------
 
@@ -895,9 +903,8 @@ while not terminate do
 		else
 			campUp = false
 		end
-		if rogSettings.dragcorpses == 'on' and campUp == true then checkForDead() end
+		if rogSettings.dragcorpses == 'on' and campUp == true and mq.TLO.Me.XTarget() < 1 then checkForDead() end
 		if dragNow == true then manualDragCorpse() dragNow = false end
-		
 	end
 	if not Open then return end
 end
