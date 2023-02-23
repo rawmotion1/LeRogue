@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.7'
+local version = 'v2.0.8'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -74,47 +74,47 @@ local function color(val)
 end
 
 local function listCommands()
-	print('\at[LeRogue] \aw---- \atAll available commands \aw----')
-	print('\at[LeRogue] \ay \awType \ay/lr help \aw(or just \ay/lr\aw) to repeat this list')
-	print('\at[LeRogue] \ay \awType \ay/lr resetdefaults \aw to reset all settings')
+	print('\at[LeRogue]\aw ---- \atAll available commands \aw----')
+	print('\at[LeRogue]\aw Type \ay/lr help \aw(or just \ay/lr\aw) to repeat this list')
+	print('\at[LeRogue]\aw Type \ay/lr resetdefaults \aw to reset all settings')
 
-	print('\at[LeRogue] \ao Pausing the script:')
-	print('\at[LeRogue] \ay /lr pause \aw(toggles pause)')
-	print('\at[LeRogue] \ay /lr pause \agon\aw/\aroff\aw (turn pause on or off)')
+	print('\at[LeRogue]\ao Pausing the script:')
+	print('\at[LeRogue]\ay /lr pause \aw(toggles pause)')
+	print('\at[LeRogue]\ay /lr pause \agon\aw/\aroff\aw (turn pause on or off)')
 
-	print('\at[LeRogue] \ao Combat settings:')
-	print('\at[LeRogue] \ay /lr combat \agon\aw/\aroff\aw (uses combat abilities)')
-	print('\at[LeRogue] \ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
-	print('\at[LeRogue] \ay /lr dot \agon\aw/\aroff\aw (uses dots)')
-	print('\at[LeRogue] \ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
+	print('\at[LeRogue]\ao Combat settings:')
+	print('\at[LeRogue]\ay /lr combat \agon\aw/\aroff\aw (uses combat abilities)')
+	print('\at[LeRogue]\ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
+	print('\at[LeRogue]\ay /lr dot \agon\aw/\aroff\aw (uses dots)')
+	print('\at[LeRogue]\ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
 
-	print('\at[LeRogue] \aoBurn settings:')
-	print('\at[LeRogue] \ay /lr burn \aw(big burn on target)')
-	print('\at[LeRogue] \ay /lr glyph \agon\aw/\aroff\aw (uses power glyph during burn)')
-	print('\at[LeRogue] \ay /lr burnalways \aw(always use burns)')
+	print('\at[LeRogue]\ao Burn settings:')
+	print('\at[LeRogue]\ay /lr burn \aw(big burn on target)')
+	print('\at[LeRogue]\ay /lr glyph \agon\aw/\aroff\aw (uses power glyph during burn)')
+	print('\at[LeRogue]\ay /lr burnalways \aw(always use burns)')
 
-	print('\at[LeRogue] \ao Combat routine clickies:')
-	print('\at[LeRogue] \ay /lr addclicky \aw(add clicky on cursor to routine)')
-	print('\at[LeRogue] \ay /lr removeclicky \aw(remove clicky on cursor from routine)')
-	print('\at[LeRogue] \ay /lr listclickies \aw(shows clickies you\'ve added)')
+	print('\at[LeRogue]\ao Combat routine clickies:')
+	print('\at[LeRogue]\ay /lr addclicky \aw(add clicky on cursor to routine)')
+	print('\at[LeRogue]\ay /lr removeclicky \aw(remove clicky on cursor from routine)')
+	print('\at[LeRogue]\ay /lr listclickies \aw(shows clickies you\'ve added)')
 
-	print('\at[LeRogue] \ao Auto hide settings:')
-	print('\at[LeRogue] \ay /lr hide \agon\aw/\aroff\aw (keeps you hidden)')
-	print('\at[LeRogue] \ay /lr pausehide x \aw(be visible for x seconds then resume)')
+	print('\at[LeRogue]\ao Auto hide settings:')
+	print('\at[LeRogue]\ay /lr hide \agon\aw/\aroff\aw (keeps you hidden)')
+	print('\at[LeRogue]\ay /lr pausehide x \aw(be visible for x seconds then resume)')
 
-	print('\at[LeRogue] \ao Defense settings:')
-	print('\at[LeRogue] \ay /lr stayalive \agon\aw/\aroff\aw (use defense abilities in emergency)')
+	print('\at[LeRogue]\ao Defense settings:')
+	print('\at[LeRogue]\ay /lr stayalive \agon\aw/\aroff\aw (use defense abilities in emergency)')
 
-	print('\at[LeRogue] \ao Poison settings:')
-	print('\at[LeRogue] \ay /lr poison \agon\aw/\aroff\aw (reapplies poison when it\'s safe)')
-	print('\at[LeRogue] \ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
+	print('\at[LeRogue]\ao Poison settings:')
+	print('\at[LeRogue]\ay /lr poison \agon\aw/\aroff\aw (reapplies poison when it\'s safe)')
+	print('\at[LeRogue]\ay /lr summon \agon\aw/\aroff\aw (summons poison when it\'s safe)')
 
-	print('\at[LeRogue] \ao Min NPC lvl to use combat abilities:')
-	print('\at[LeRogue] \ay /lr minlevel \aox \aw(default is 110)')
+	print('\at[LeRogue]\ao Min NPC lvl to use combat abilities:')
+	print('\at[LeRogue]\ay /lr minlevel \aox \aw(default is 110)')
 
-	print('\at[LeRogue] \ao Pulling corpses:')
-	print('\at[LeRogue] \ay /lr dragcorpses \agon\aw/\aroff\aw (automatically drags group corpses if you have a camp set)')
-	print('\at[LeRogue] \ay /lr dragcorpse \aoname \ayor \aotarget \aw(find and corpse)')
+	print('\at[LeRogue]\ao Pulling corpses:')
+	print('\at[LeRogue]\ay /lr dragcorpses \agon\aw/\aroff\aw (automatically drags group corpses if you have a camp set)')
+	print('\at[LeRogue]\ay /lr dragcorpse \aoname \ayor \aotarget \aw(find and corpse)')
 end
 
 -------------------------Handle settings----------------------------------------
@@ -143,7 +143,7 @@ local function setDefaults(s)
 	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end
 	if s == 'all' or rogSettings.dragcorpses == nil then rogSettings.dragcorpses = 'on' end 
 	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 110 end
-	for k,v in pairs(rogSettings) do print('\at[LeRogue] \ao ',k,": \ay",color(v)) end
+	for k,v in pairs(rogSettings) do print('\at[LeRogue]\ao ',k,": \ay",color(v)) end
 	saveSettings()
 end
 
@@ -157,8 +157,8 @@ local function setup()
 	elseif configData then -- file loaded, put content into your config table
 	    rogSettings = configData().rogSettings
 	    rogClickies = configData().rogClickies
-	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
-	    print('\at[LeRogue] \aw---- \atToggles are currently set to \aw----')
+	    print('\at[LeRogue]\ay Welcome to LeRogue.lua ', version)
+	    print('\at[LeRogue]\aw ---- \atToggles are currently set to \aw----')
 		setDefaults() -- check for missing settings
 		listCommands()
 	end
@@ -203,12 +203,12 @@ end
 local function newMinLvl(val)
 	val = tonumber(val)
 	if val == nil then
-		print('\at[LeRogue] \ay Specify a number between 1 and 120')
+		print('\at[LeRogue]\ay Specify a number between 1 and 120')
 	elseif val < 1 or val > 120 then
-		print('\at[LeRogue] \ay Specify a number between 1 and 120')
+		print('\at[LeRogue]\ay Specify a number between 1 and 120')
 	else
 		rogSettings.minlevel = val 
-		print('\at[LeRogue] \ay Min NPC lvl for combat is now \ag' , val)
+		print('\at[LeRogue]\ay Min NPC lvl for combat is now \ag' , val)
 		saveSettings()
 	end
 end
@@ -257,7 +257,7 @@ end
 
 local function listClickies()
 	for k,v in pairs(rogClickies) do
-		print('\at[LeRogue] \ay ', mq.TLO.FindItem(v).Name())
+		print('\at[LeRogue]\ay ', mq.TLO.FindItem(v).Name())
 	end
 end
 
@@ -390,7 +390,7 @@ local function doDiscs()
 				mq.cmdf('/disc %s', v)
 				mq.delay(250)
 			until mq.TLO.Me.ActiveDisc() == v
-			print('\at[LeRogue] \ao Starting: \ay', v)
+			print('\at[LeRogue] \aoStarting: \ay', v)
 	  	end		
 	end
 end
@@ -528,20 +528,20 @@ end
 local function pauseHide(val)
 	val = tonumber(val)
 	if val == nil then
-		print('\at[LeRogue] \ay Please specify seconds (e.g. 30 for 30 seconds)')
+		print('\at[LeRogue]\ay Please specify seconds (e.g. 30 for 30 seconds)')
 		return
 	end
 	if rogSettings.hide == 'off' then
-		print('\at[LeRogue] \ay Pausehide only works when autohide is on')
+		print('\at[LeRogue]\ay Pausehide only works when autohide is on')
 	elseif rogSettings.hide == 'paused' then
-		print('\at[LeRogue] \ay Hide is already paused!')
+		print('\at[LeRogue]\ay Hide is already paused!')
 	elseif val > 300 then
-		print('\at[LeRogue] \ay Max value is 300')	
+		print('\at[LeRogue]\ay Max value is 300')	
 	else	
 		setTimer(val)
 		mq.cmd('/makemevisible')
 		rogSettings.hide = 'paused'
-		print('\at[LeRogue] \ay Hide paused for ', val, ' seconds')
+		print('\at[LeRogue]\ay Hide paused for ', val, ' seconds')
 	end
 end
 
@@ -671,7 +671,7 @@ local function checkForDead(n)
 		end
 	end
 	if n == 'notify' and not found then
-		print('\at[LeRogue] \ayCan\t find any corpses in this zone')
+		print('\at[LeRogue] \ayCan\'t find any corpses in this zone')
 	end
 end
 
@@ -731,9 +731,9 @@ local function binds(cmd, val)
 		and cmd ~= 'glyph' 
 		and cmd ~= 'dragcorpses'
 		and cmd ~= 'burnalways' then
-		print('\at[LeRogue] \ay Invalid command')
+		print('\at[LeRogue]\ay Invalid command')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
-		print('\at[LeRogue] \ay Please use on/off')
+		print('\at[LeRogue]\ay Please use on/off')
 	else updateSettings(cmd, val) boolizeSettings() end
 end
 mq.bind('/lr', binds)
@@ -780,8 +780,14 @@ local function buildLrWindow()
 	if update then boolSwitch() end
 
     if ImGui.Button('Add clicky', buttonThirdWidth, 0) then addClicky() end
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Click this with a clicky on your cursor.")
+	end
     ImGui.SameLine()
     if ImGui.Button('Remove', buttonThirdWidth, 0) then removeClicky() end
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Click this with a clicky on your cursor.")
+	end
     ImGui.SameLine()
     if ImGui.Button('List all', buttonThirdWidth, 0) then listClickies() end
 
@@ -835,12 +841,14 @@ local function buildLrWindow()
 	boolSettings.dragcorpses, update = ImGui.Checkbox('Auto drag corpses', boolSettings.dragcorpses)
 	if update then boolSwitch() end
 	ImGui.SameLine()
-	ImGui.Text('\xee\xa2\x8f')
+	ImGui.Text('\xee\xa3\xbd')
 	if (ImGui.IsItemHovered()) then
-        ImGui.SetTooltip("Will automatically drag group members' corpses if you have a campfire set.")
+        ImGui.SetTooltip("Automatically drag group corpses if you have a KA camp or campfire set.")
 	end
     if ImGui.Button('Drag corpse', buttonHalfWidth, 0) then dragNow = true end
-	
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Drag your target's corpse to camp or current location.")
+	end
 	ImGui.SameLine()
 	ImGui.PushStyleColor(ImGuiCol.Button, .61, .0, .0, .75)
 	if ImGui.Button('Burn now', buttonHalfWidth, 0) then burnNow = true end
