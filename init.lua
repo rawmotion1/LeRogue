@@ -1,11 +1,16 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.8'
+local version = 'v2.0.9'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
 require('ImGui')
 
+if mq.TLO.Me.Class() ~= 'Rogue' then
+	print('\at[LeRogue]\ay Welcome to... Wait, you\'re not a rogue!')
+	print('\aoLeRogue disappears completely.')
+	os.exit()
+end
 
 local rogSettings = {} -- initialize config tables
 local boolSettings = {}
@@ -870,6 +875,7 @@ mq.imgui.init('LeRogue', lrWindow)
 
 local terminate = false
 while not terminate do
+	if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then break end
 	if pause == true then 
 		local function stop() return pause == false end
 		print('\at[LeRogue] \arPAUSED (type /lr pause to unpause)')
