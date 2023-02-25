@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.0.9'
+local version = 'v2.1.0'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -8,8 +8,13 @@ require('ImGui')
 
 if mq.TLO.Me.Class() ~= 'Rogue' then
 	print('\at[LeRogue]\ay Welcome to... Wait, you\'re not a rogue!')
-	print('\aoLeRogue disappears completely.')
-	os.exit()
+	print('\aoLeRogue vanishes and you notice your purse feels lighter.')
+	mq.exit()
+end
+if mq.TLO.Me.Subscription() ~= 'GOLD' then
+	print('\at[LeRogue]\ay Sorry, you must have a Gold subscription.')
+	print('\aoLeRogue vanishes and you notice your purse feels lighter.')
+	mq.exit()
 end
 
 local rogSettings = {} -- initialize config tables
