@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.1.0'
+local version = 'v2.1.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -96,6 +96,7 @@ local function listCommands()
 	print('\at[LeRogue]\ay /lr combat \agon\aw/\aroff\aw (uses combat abilities)')
 	print('\at[LeRogue]\ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
 	print('\at[LeRogue]\ay /lr dot \agon\aw/\aroff\aw (uses dots)')
+	print('\at[LeRogue]\ay /lr ligament \agon\aw/\aroff\aw (uses ligament slice)')
 	print('\at[LeRogue]\ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
 
 	print('\at[LeRogue]\ao Burn settings:')
@@ -153,6 +154,7 @@ local function setDefaults(s)
 	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end
 	if s == 'all' or rogSettings.dragcorpses == nil then rogSettings.dragcorpses = 'on' end 
 	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 110 end
+	if s == 'all' or rogSettings.ligament == nil then rogSettings.ligament = 'on' end
 	for k,v in pairs(rogSettings) do print('\at[LeRogue]\ao ',k,": \ay",color(v)) end
 	saveSettings()
 end
@@ -368,7 +370,11 @@ local function doCombatAbilies()
 	if notNil(mq.TLO.Target.PctHPs()) > 20 then
 		for k,v in pairs(myDebuffs) do
 			if not engaged() or pause == true then break end
-			execute(v)
+			if v == 672 and rogSettings.ligament == 'off' then
+				--Do nothing
+			else
+				execute(v)
+			end
 		end
 	end
 end
@@ -740,6 +746,7 @@ local function binds(cmd, val)
 		and cmd ~= 'stayalive'
 		and cmd ~= 'glyph' 
 		and cmd ~= 'dragcorpses'
+		and cmd ~= 'ligament'
 		and cmd ~= 'burnalways' then
 		print('\at[LeRogue]\ay Invalid command')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
@@ -784,6 +791,9 @@ local function buildLrWindow()
 	if update then boolSwitch() end
 
     boolSettings.dot, update = ImGui.Checkbox('DoTs', boolSettings.dot)
+	if update then boolSwitch() end
+
+	boolSettings.ligament, update = ImGui.Checkbox('Ligament slice', boolSettings.ligament)
 	if update then boolSwitch() end
 
     boolSettings.clickies, update = ImGui.Checkbox('Combat clickies', boolSettings.clickies)
