@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.2.0'
+local version = 'v2.2.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -168,6 +168,9 @@ local function setup()
 		listCommands()
 	elseif configData then -- file loaded, put content into your config table
 	    local conf = configData()
+		if not conf.burnClickies then
+			conf = { rogSettings=rogSettings, rogClickies=rogClickies, burnClickies=burnClickies }
+		end
 		rogSettings = conf.rogSettings
 	    rogClickies = conf.rogClickies
 		burnClickies = conf.burnClickies
