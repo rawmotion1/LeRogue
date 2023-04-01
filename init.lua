@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.1.1'
+local version = 'v2.2.0'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -20,6 +20,7 @@ end
 local rogSettings = {} -- initialize config tables
 local boolSettings = {}
 local rogClickies = {}
+local burnClickies = {}
 local rogPath = 'LeRogueConfig.lua' -- name of config file in config folder
 
 --Combat abilities and aas
@@ -97,7 +98,6 @@ local function listCommands()
 	print('\at[LeRogue]\ay /lr disc \agon\aw/\aroff\aw (rotates discs)')
 	print('\at[LeRogue]\ay /lr dot \agon\aw/\aroff\aw (uses dots)')
 	print('\at[LeRogue]\ay /lr ligament \agon\aw/\aroff\aw (uses ligament slice)')
-	print('\at[LeRogue]\ay /lr clickies \agon\aw/\aroff\aw (uses combat clickies)')
 
 	print('\at[LeRogue]\ao Burn settings:')
 	print('\at[LeRogue]\ay /lr burn \aw(big burn on target)')
@@ -105,7 +105,7 @@ local function listCommands()
 	print('\at[LeRogue]\ay /lr burnalways \aw(always use burns)')
 
 	print('\at[LeRogue]\ao Combat routine clickies:')
-	print('\at[LeRogue]\ay /lr addclicky \aw(add clicky on cursor to routine)')
+	print('\at[LeRogue]\ay /lr addclicky \agcombat \ayor \agburn \aw(add clicky on cursor to routine)')
 	print('\at[LeRogue]\ay /lr removeclicky \aw(remove clicky on cursor from routine)')
 	print('\at[LeRogue]\ay /lr listclickies \aw(shows clickies you\'ve added)')
 
@@ -131,7 +131,7 @@ end
 -------------------------Handle settings----------------------------------------
 
 local function saveSettings()
-	mq.pickle(rogPath, { rogSettings=rogSettings, rogClickies=rogClickies })
+	mq.pickle(rogPath, { rogSettings=rogSettings, rogClickies=rogClickies, burnClickies=burnClickies })
 end
 
 local function updateSettings(cmd, val)
@@ -167,8 +167,10 @@ local function setup()
 		setDefaults('all')
 		listCommands()
 	elseif configData then -- file loaded, put content into your config table
-	    rogSettings = configData().rogSettings
-	    rogClickies = configData().rogClickies
+	    local conf = configData()
+		rogSettings = conf.rogSettings
+	    rogClickies = conf.rogClickies
+		burnClickies = conf.burnClickies
 	    print('\at[LeRogue]\ay Welcome to LeRogue.lua ', version)
 	    print('\at[LeRogue]\aw ---- \atToggles are currently set to \aw----')
 		setDefaults() -- check for missing settings
@@ -238,13 +240,19 @@ local function addClicky()
 	else
 		for k,v in pairs(rogClickies) do
 			if v == id.ID() then
-				print('\at[LeRogue] \ayAlready added')
+				print('\at[LeRogue] \ayAlready added to combat routine.')
+				return
+			end
+		end
+		for k,v in pairs(burnClickies) do
+			if v == id.ID() then
+				print('\at[LeRogue] \ayAlready in burn routine. Not adding to combat routine.')
 				return
 			end
 		end
 		table.insert(rogClickies, id.ID())
 		saveSettings()
-		print('\at[LeRogue] \ayAdded clicky: \ag', id.Name())
+		print('\at[LeRogue] \ayAdded clicky to combat routine: \ag', id.Name())
 	end
 end
 
@@ -261,15 +269,52 @@ local function removeClicky()
 			if v == id.ID() then
 				rogClickies[k] = nil
 				saveSettings()
-				print('\at[LeRogue] \ayClicky removed')	
+				print('\at[LeRogue] \ayClicky removed from combat routine.')
+			end
+		end
+		for k,v in pairs(burnClickies) do
+			if v == id.ID() then
+				burnClickies[k] = nil
+				saveSettings()
+				print('\at[LeRogue] \ayClicky removed from burn routine.')
 			end
 		end
 	end
 end
 
+local function addBurnClicky()
+	local id = mq.TLO.Cursor
+	if id.ID() == nil then
+		print('\at[LeRogue] \ayPut a clicky on your cursor.')
+		return
+	elseif id.Clicky() == nil then
+		print('\at[LeRogue] \ayThis is not a clicky.')
+		return
+	else
+		for k,v in pairs(rogClickies) do
+			if v == id.ID() then
+				print('\at[LeRogue] \ayAlready in combat routine. Not adding to burn routine.')
+				return
+			end
+		end
+		for k,v in pairs(burnClickies) do
+			if v == id.ID() then
+				print('\at[LeRogue] \ayAlready added to burn routine.')
+				return
+			end
+		end
+		table.insert(burnClickies, id.ID())
+		saveSettings()
+		print('\at[LeRogue] \ayAdded clicky to burn routine: \ag', id.Name())
+	end
+end
+
 local function listClickies()
 	for k,v in pairs(rogClickies) do
-		print('\at[LeRogue]\ay ', mq.TLO.FindItem(v).Name())
+		print('\at[LeRogue]\ay Combat clickies: \ag', mq.TLO.FindItem(v).Name())
+	end
+	for k,v in pairs(burnClickies) do
+		print('\at[LeRogue]\ay Burn clickies: \ag', mq.TLO.FindItem(v).Name())
 	end
 end
 
@@ -435,9 +480,13 @@ local function doBurn()
 			if not engaged() or pause == true then break end
 			execute(v, 'burn')
 		end
+		for k,v in pairs(burnClickies) do
+			if not engaged() or pause == true then break end
+			execute(v, 'burn')
+		end
         if rogSettings.glyph == 'on' then
 			if not engaged() or pause == true then return end
-			execute(5304, burn)
+			execute(5304, 'burn')
 		end
 		if mq.TLO.FindItem(rage)() then
             if not engaged() or pause == true then return end
@@ -453,6 +502,10 @@ local function keepBurning()
         if not engaged() or pause == true then break end
         execute(v, 'burn')
     end
+	for k,v in pairs(burnClickies) do
+		if not engaged() or pause == true then break end
+		execute(v, 'burn')
+	end
     if mq.TLO.FindItem(rage)() then
         if not engaged() or pause == true then return end
         execute(rage)
@@ -731,7 +784,10 @@ local function binds(cmd, val)
 	elseif cmd == 'resetdefaults' then setDefaults('all')
 	elseif cmd == 'minlevel' then newMinLvl(val)
 	elseif cmd == 'pausehide' then pauseHide(val)	
-	elseif cmd == 'addclicky' then addClicky() 
+	elseif cmd == 'addclicky' then
+		if val == 'burn' then addBurnClicky() 
+		elseif val == 'combat' then addClicky()
+		else print('\at[LeRogue] \ayPlease use /lr addclicky \agcombat\ay or \agburn') end
 	elseif cmd == 'removeclicky' then removeClicky()
 	elseif cmd == 'listclickies' then listClickies()
 	elseif cmd == 'burn' then doBurn()
@@ -740,7 +796,6 @@ local function binds(cmd, val)
 		and cmd ~= 'hide' 
 		and cmd ~= 'disc' 
 		and cmd ~= 'combat' 
-		and cmd ~= 'clickies' 
 		and cmd ~= 'poison' 
 		and cmd ~= 'summon' 
 		and cmd ~= 'stayalive'
@@ -748,7 +803,7 @@ local function binds(cmd, val)
 		and cmd ~= 'dragcorpses'
 		and cmd ~= 'ligament'
 		and cmd ~= 'burnalways' then
-		print('\at[LeRogue]\ay Invalid command')
+		print('\at[LeRogue]\ay Invalid command. Type /lr help for a list.')
 	elseif (val ~= 'on' and val ~= 'off') or val == nil then
 		print('\at[LeRogue]\ay Please use on/off')
 	else updateSettings(cmd, val) boolizeSettings() end
@@ -773,11 +828,11 @@ local lvlUpdated
 local Open, ShowUI = true, true
 local function buildLrWindow()
 	local update
-	ImGui.SetWindowSize(220, 480, ImGuiCond.Once) 
+	ImGui.SetWindowSize(240, 500, ImGuiCond.Once)
 	local x, y = ImGui.GetContentRegionAvail()
 	local buttonHalfWidth = (x / 2) - 4
-	local buttonThirdWidth = (x / 3) - 5
-
+	local buttonThirdWidth = (x / 4) - 1
+	
     if ImGui.Button('Pause') then togglePause() end
     ImGui.SameLine()
     if pause == false then ImGui.TextColored(0, .75, 0, 1, 'Running '..version) else ImGui.TextColored(.75, 0, 0, 1, 'Paused') end
@@ -796,21 +851,25 @@ local function buildLrWindow()
 	boolSettings.ligament, update = ImGui.Checkbox('Ligament slice', boolSettings.ligament)
 	if update then boolSwitch() end
 
-    boolSettings.clickies, update = ImGui.Checkbox('Combat clickies', boolSettings.clickies)
-	if update then boolSwitch() end
-
-    if ImGui.Button('Add clicky', buttonThirdWidth, 0) then addClicky() end
+    ImGui.Text('Add/remove clickies')
+	ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 2, 4)
+    if ImGui.Button('Combat', buttonThirdWidth, 0) then addClicky() end
 	if (ImGui.IsItemHovered()) then
-        ImGui.SetTooltip("Click this with a clicky on your cursor.")
+        ImGui.SetTooltip("Add clicky on cursor to combat routine.")
 	end
     ImGui.SameLine()
-    if ImGui.Button('Remove', buttonThirdWidth, 0) then removeClicky() end
+	if ImGui.Button('Burn', buttonThirdWidth, 0) then addBurnClicky() end
 	if (ImGui.IsItemHovered()) then
-        ImGui.SetTooltip("Click this with a clicky on your cursor.")
+        ImGui.SetTooltip("Add clicky on cursor to burn routine.")
 	end
     ImGui.SameLine()
-    if ImGui.Button('List all', buttonThirdWidth, 0) then listClickies() end
-
+    if ImGui.Button('Rem', buttonThirdWidth, 0) then removeClicky() end
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Remove clicky on your cursor from LeRogue.")
+	end
+    ImGui.SameLine()
+    if ImGui.Button('List', buttonThirdWidth, 0) then listClickies() end
+	ImGui.PopStyleVar()
 	ImGui.Separator()
 
     boolSettings.glyph, update = ImGui.Checkbox('Use glyphs', boolSettings.glyph)
