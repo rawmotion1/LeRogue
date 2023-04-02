@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.2.1'
+local version = 'v2.2.2'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -66,7 +66,7 @@ local myBurn = {
 }
 
 --Other stuff
-local calm = mq.TLO.Spell('Night\'s Calming').RankName()
+local calm = mq.TLO.Spell('Breather').RankName()
 local reflex = mq.TLO.Spell('Practiced Reflexes').RankName()
 local thief = mq.TLO.Spell('thief\'s sight').RankName()
 local beguile = mq.TLO.Spell('beguile').RankName()
@@ -466,7 +466,7 @@ local function doOther()
     if rogSettings.combat == 'on' and mq.TLO.Me.TargetOfTarget() ~= mq.TLO.Me.Name() then
 	    execute(beguile)
   	end
-    if mq.TLO.Me.PctEndurance() < 10 then
+    if mq.TLO.Me.PctEndurance() < 18 then
 		execute(calm)
 	end
   	if mq.TLO.Me.CombatAbilityReady(thief)() and not mq.TLO.Me.Song(thief)() then
