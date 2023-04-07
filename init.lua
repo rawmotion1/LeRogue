@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = 'v2.3.0'
+local version = '3.0.0'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -16,56 +16,18 @@ local rogSettings = {} -- initialize config tables
 local boolSettings = {}
 local rogClickies = {}
 local burnClickies = {}
-local rogPath = 'LeRogueConfig.lua' -- name of config file in config folder
+local toon = mq.TLO.Me.Name() or ''
+local rogPath = 'LeRogueConfig_'..toon..'.lua' -- name of config file in config folder
+local oldPath = 'LeRogueConfig.lua'
 
---Combat abilities and aas
-local myCombatAbilities = { 
-	mq.TLO.Spell('shadowstrike').RankName(),
-	mq.TLO.Spell('ambuscade').RankName(),
-	mq.TLO.Spell('disorienting puncture').RankName(),
-	mq.TLO.Spell('obfuscated blade').RankName(),
-	mq.TLO.Spell('ecliptic weapons').RankName(),
-	mq.TLO.Spell('beguile').RankName(),
-	mq.TLO.Spell('thief\'s sight').RankName(),
-	1506
-}
+local spells = require('spelldata')
+local myCombatAbilities = spells.myCombatAbilities
+local myDebuffs = spells.myDebuffs
+local myDots = spells.myDots
+local myDiscs = spells.myDiscs
+local myBurn = spells.myBurn
+local other = spells.other
 
-local myDebuffs = {
-	mq.TLO.Spell('foolish mark').RankName(),
-	mq.TLO.Spell('pinpoint defects').RankName(),
-	672
-}
-
---Dots
-local myDots = {
-	mq.TLO.Spell('Jugular Rend').RankName(),
-	mq.TLO.Spell('Lance').RankName(),
-	670
-}
-
---Rotating discs
-local myDiscs = { 
-	mq.TLO.Spell('Twisted Chance Discipline').RankName(),
-	mq.TLO.Spell('Executioner Discipline').RankName(),
-	mq.TLO.Spell('Ragged Edge Discipline').RankName(),
-	mq.TLO.Spell('Frenzied Stabbing Discipline').RankName(),
-	mq.TLO.Spell('Knifeplay Discipline').RankName(),
-	mq.TLO.Spell('Exotoxin Discipline').RankName(),
-	mq.TLO.Spell('Weapon Covenant').RankName()
-}
-
---For a burn command
-local myBurn = {
-	3514,
-	1410,
-	378,
-	mq.TLO.Spell('Netherbian Blade').RankName()
-}
-
---Other stuff
-local calm = mq.TLO.Spell('Breather').RankName()
-local reflex = mq.TLO.Spell('Practiced Reflexes').RankName()
-local nimble = mq.TLO.Spell('Nimble Discipline').RankName()
 local poison = mq.TLO.Me.Inventory(18).Clicky.Spell.Base(1)()
 local legs = mq.TLO.Me.Inventory(18).ID()
 local pause = false
@@ -147,14 +109,16 @@ local function setDefaults(s)
 	if s == 'all' or rogSettings.glyph == nil then rogSettings.glyph = 'off' end
 	if s == 'all' or rogSettings.burnalways == nil then rogSettings.burnalways = 'off' end
 	if s == 'all' or rogSettings.dragcorpses == nil then rogSettings.dragcorpses = 'on' end
-	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 110 end
+	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 75 end
 	if s == 'all' or rogSettings.ligament == nil then rogSettings.ligament = 'on' end
 	for k,v in pairs(rogSettings) do print('\at[LeRogue]\ao ',k,": \ay",color(v)) end
 	saveSettings()
 end
 
 local function setup()
-	local configData, err = loadfile(mq.configDir..'/'..rogPath) -- read config file
+	local err
+	local configData, error = loadfile(mq.configDir..'/'..rogPath) -- read config file
+	if error then configData, err = loadfile(mq.configDir..'/'..oldPath) end
 	if err then -- failed to read the config file, create it using pickle	    
 	    print('\at[LeRogue] \ay Creating config file...')  
 	    print('\at[LeRogue] \ay Welcome to LeRogue.lua ', version)
@@ -169,7 +133,6 @@ local function setup()
 	    rogClickies = conf.rogClickies
 		burnClickies = conf.burnClickies
 	    print('\at[LeRogue]\ay Welcome to LeRogue.lua ', version)
-	    print('\at[LeRogue]\aw ---- \atToggles are currently set to \aw----')
 		setDefaults() -- check for missing settings
 		listCommands()
 	end
@@ -356,6 +319,11 @@ local function checks(n, c, k)
 	local passed = true
 	if pause == true then passed = false end
 	if not goodToGo() then passed = false end
+	if c == 1 and mq.TLO.Me.Ability(n)() == nil then passed = false end
+	if c == 2 and mq.TLO.Me.CombatAbility(n)() == nil then passed = false end
+	if c == 3 and mq.TLO.FindItemCount(n)() < 1 then passed = false end
+	if c == 4 and mq.TLO.Me.AltAbility(n)() == nil then passed = false end
+
 	if c == 1 and not mq.TLO.Me.AbilityReady(n)() then
 		passed = false
 	elseif c == 2 and not mq.TLO.Me.CombatAbilityReady(n)() then
@@ -365,17 +333,17 @@ local function checks(n, c, k)
 	elseif c == 4 and not mq.TLO.Me.AltAbilityReady(n)() then
 		passed = false
 	end
-	if k == 'rotate' and mq.TLO.Me.ActiveDisc() then passed = false end
-	if (c == 2 or c == 3) and mq.TLO.Spell(n).SpellType() == 'Beneficial' and mq.TLO.Spell(n).Stacks() == false and n ~= 'Ecliptic Weapons' then passed = false end
+	if (c == 2 or c == 3) and mq.TLO.Spell(n).SpellType() == 'Beneficial' and (mq.TLO.Spell(n).Stacks() == false and mq.TLO.Spell(n..' Effect').Stacks() == false) then passed = false end
 	if (k == 'dot' or k == 'debuff') and notNil(mq.TLO.Target.PctHPs()) < 20 then passed = false end
 	if n == 672 and rogSettings.ligament == 'off' then passed = false end
 	if n == mq.TLO.Spell('beguile').RankName() and mq.TLO.Me.TargetOfTarget() == mq.TLO.Me.Name() then passed = false end
-	if n == mq.TLO.Spell('thief\'s sight').RankName() and mq.TLO.Me.Song('thief')() ~= nil then passed = false end
+	if string.find(n, 'Thief') and mq.TLO.Me.Song('thief')() ~= nil then passed = false end
 	if c == 3 and mq.TLO.FindItem(n).Prestige() == true and mq.TLO.Me.Subscription() ~= 'GOLD' then passed = false end
 	return passed
 end
 
 local function execute(name, kind)
+	if name == nil then return end
 	local category
 	local start
 	local stop
@@ -388,7 +356,12 @@ local function execute(name, kind)
 			printName = 'none'
 		else
 			category = 2
-			start = function() mq.cmdf('/disc %s', name) end
+			if kind == 'rotate' then
+				if mq.TLO.Me.ActiveDisc() then return end
+				start = function() repeat mq.cmdf('/disc %s', name) until mq.TLO.Me.ActiveDisc() == name end
+			else
+				start = function() mq.cmdf('/disc %s', name) end
+			end
 			stop = function() return not mq.TLO.Me.CombatAbilityReady(name)() end
 			printName = name
 		end
@@ -467,7 +440,7 @@ local function doOther()
   	execute('disarm')
     execute('hide')
     if mq.TLO.Me.PctEndurance() < 18 then
-		execute(calm, 'buff')
+		execute(other.calm, 'buff')
 	end
 end
 
@@ -504,11 +477,10 @@ end
 ------------------------------Safe to cast -----------------------------
 
 local function reflexes()
-	if mq.TLO.Me.Buff(reflex).ID() == nil then
-		execute(reflex, 'buff')
+	if mq.TLO.Me.Buff(other.reflex).ID() == nil then
+		execute(other.reflex, 'buff')
 	end
 end
-
 local function applyPoison()
 	if mq.TLO.FindItemCount(poison)() > 0 and mq.TLO.Me.Buff(mq.TLO.FindItem(poison).Clicky()).ID() == nil then
 		execute(poison, 'click')
@@ -526,20 +498,20 @@ end
 local function stayAlive()
 	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() then
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.PctHPs() > 59 then execute(673, 'live') end
+	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.PctHPs() > 59 then execute(other.tumble, 'live') end
 	    -- Premonition
-	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.PctHPs() > 39 then execute(1134, 'live') end
+	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.PctHPs() > 39 then execute(other.premonition, 'live') end
 	    -- Nimble
-	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.PctHPs() > 19 and mq.TLO.Me.CombatAbilityReady(nimble)() then
-	        if mq.TLO.Me.ActiveDisc() ~= nil and mq.TLO.Me.ActiveDisc() ~= nimble then
+	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.PctHPs() > 19 and mq.TLO.Me.CombatAbilityReady(other.nimble)() then
+	        if mq.TLO.Me.ActiveDisc() ~= nil and mq.TLO.Me.ActiveDisc() ~= other.nimble then
 				mq.cmd('/stopdisc')
 			end
 	        repeat
-				execute(nimble, 'live')
-			until mq.TLO.Me.ActiveDisc() == nimble
+				execute(other.nimble, 'live')
+			until mq.TLO.Me.ActiveDisc() == other.nimble
 	    end
 	    -- Escape
-	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady('102')() then
+	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady(other.escape)() then
 	        mq.cmd('/squelch /backoff')
 	        mq.cmd('/squelch /end')
 	        mq.cmd('/squelch /attack off')
@@ -549,7 +521,7 @@ local function stayAlive()
 	        mq.cmd('/squelch /nav stop')
 	        mq.cmd('/squelch /play off')
 	        mq.delay(250)
-	        execute(102, 'live')
+	        execute(other.escape, 'live')
 	    end
 	end
 end
@@ -595,7 +567,12 @@ local function noConsent(line)
 	print('\at[LeRogue] \ayI don\'t have consent do drag this corpse.')
 	consent = false
 end
+local function backstab()
+	mq.cmd('/autoskill backstab')
+end
 mq.event('consent', '#*#You do not have consent to summon that corpse.#*#', noConsent)
+mq.event('autoskill', '#*#You will no longer use backstab while attacking.#*#', backstab)
+backstab()
 --------------------------Fetch corpse routine--------------------------------
 
 local campUp
