@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.0.0'
+local version = '3.0.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -358,7 +358,7 @@ local function execute(name, kind)
 			category = 2
 			if kind == 'rotate' then
 				if mq.TLO.Me.ActiveDisc() then return end
-				start = function() repeat mq.cmdf('/disc %s', name) until mq.TLO.Me.ActiveDisc() == name end
+				start = function() repeat mq.cmdf('/disc %s', name) mq.delay(250) until mq.TLO.Me.ActiveDisc() == name end
 			else
 				start = function() mq.cmdf('/disc %s', name) end
 			end
