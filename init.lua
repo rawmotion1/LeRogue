@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.0.1'
+local version = '3.0.2'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -439,9 +439,10 @@ end
 local function doOther()
   	execute('disarm')
     execute('hide')
-    if mq.TLO.Me.PctEndurance() < 18 then
-		execute(other.calm, 'buff')
-	end
+end
+
+local function breathe()
+	execute(other.calm, 'buff')
 end
 
 local function doBurn()
@@ -925,6 +926,10 @@ while not terminate do
 		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
 		if engaged() then doOther() end
 		if burnNow == true then doBurn() burnNow = false end
+
+		if not engaged() and goodToGo() and mq.TLO.Me.PctEndurance() < 18 then
+			breathe()
+		end
 
 		--rebuff
 		if safeToCast() then
