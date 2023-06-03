@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.0.2'
+local version = '3.0.3'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -349,7 +349,7 @@ local function execute(name, kind)
 	local stop
 	local printName
 	if type(name) == 'string' then
-		if name == 'hide' or name == 'sneak' or name == 'disarm' then
+		if name == 'hide' or name == 'sneak' or name == 'disarm' or name == 'intimidation' then
 			category = 1
 			start = function() mq.cmdf('/doability %s', name) end
 			stop = function() return not mq.TLO.Me.AbilityReady(name)() end
@@ -439,6 +439,7 @@ end
 local function doOther()
   	execute('disarm')
     execute('hide')
+	execute('intimidation')
 end
 
 local function breathe()
