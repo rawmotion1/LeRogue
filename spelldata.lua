@@ -217,7 +217,6 @@ for _,v in pairs(calm) do
 end
 for _,v in pairs(reflex) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.reflex = mq.TLO.Spell(v).RankName() break end
-    print(reflex)
 end
 if mq.TLO.Me.CombatAbility(mq.TLO.Spell(nimble).RankName())() then spells.other.nimble = mq.TLO.Spell(nimble).RankName() end
 if mq.TLO.Me.AltAbility(tumble)() ~= nil then spells.other.tumble = tumble end

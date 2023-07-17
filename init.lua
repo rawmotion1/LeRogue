@@ -479,7 +479,7 @@ end
 ------------------------------Safe to cast -----------------------------
 
 local function reflexes()
-	if mq.TLO.Me.Buff(other.reflex).ID() == nil then
+	if mq.TLO.Me.Buff('reflexes').ID() == nil then
 		execute(other.reflex, 'buff')
 	end
 end
