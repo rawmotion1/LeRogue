@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.1.0'
+local version = '3.1.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -337,6 +337,7 @@ local function checks(n, c, k)
 	if (k == 'dot' or k == 'debuff') and notNil(mq.TLO.Target.PctHPs()) < 20 then passed = false end
 	if n == 672 and rogSettings.ligament == 'off' then passed = false end
 	if n == mq.TLO.Spell('beguile').RankName() and mq.TLO.Me.TargetOfTarget() == mq.TLO.Me.Name() then passed = false end
+	if n == mq.TLO.Spell('Knifeplay Discipline').RankName() and mq.TLO.Me.Song("Rogue's Fury")() ~= nil then passed = false end
 	if string.find(n, 'Thief') and mq.TLO.Me.Song('thief')() ~= nil then passed = false end
 	if c == 3 and mq.TLO.FindItem(n).Prestige() == true and mq.TLO.Me.Subscription() ~= 'GOLD' then passed = false end
 	return passed
