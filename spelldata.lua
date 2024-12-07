@@ -31,6 +31,7 @@ local stun = {
     'ambush'
 }
 local puncture = {
+    'invidious puncture',
     'disorienting puncture',
     'vindictive puncture',
     'vexatious puncture',
@@ -60,6 +61,7 @@ local vision = {
     'thief\'s eyes'
 }
 local progressive = {
+    'reciprocal weapons',
     'ecliptic weapons',
     'composite weapons',
     'dissident weapons',
