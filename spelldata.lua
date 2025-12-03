@@ -10,6 +10,7 @@ spells.myBurn = {}
 spells.other = {}
 
 local strike = {
+    'assault x',
     'mayhem',
     'shadowstrike',
     'blitzstrike',
@@ -20,6 +21,7 @@ local strike = {
     'battery'
 }
 local stun = {
+    'ambush xi',
     'bamboozle',
     'ambuscade',
     'bushwhack',
@@ -38,6 +40,7 @@ local puncture = {
     'disassociative puncture'
 }
 local blade = {
+    'holdout blade Vii',
     'veiled blade',
     'obfuscated blade',
     'cloaked blade',
@@ -46,6 +49,7 @@ local blade = {
     'holdout blade'
 }
 local distract = {
+    'misdirection ix',
     'trickery',
     'beguile',
     'cozen',
@@ -68,6 +72,7 @@ local progressive = {
     'dichotomic weapons'
 }
 local mark = {
+    'easy mark x',
     'unsuspecting mark',
     'foolish mark',
     'naive mark',
@@ -87,6 +92,7 @@ local pin = {
     'pinpoint vitals'
 }
 local jugular = {
+    'jugular slash xi',
     'jugular hew',
     'jugular rend',
     'jugular cut',
@@ -97,6 +103,7 @@ local jugular = {
     'jugular sever'
 }
 local cut = {
+    'bleed x',
     'carve',
     'lance',
     'slash',
@@ -125,6 +132,7 @@ local timerfourteen = {
     'razor\'s edge discipline'
 }
 local timerfifteen = {
+    'visaphen discipline',
     'crinotoxin discipline',
     'exotoxin discipline',
     'chelicerae discipline',
@@ -134,6 +142,7 @@ local timerfifteen = {
 }
 local timersixteen = 'Knifeplay Discipline'
 local toxicblade = {
+    'toxic blade viii',
     'venomous blade',
     'netherbian blade',
     'drachnid blade',
