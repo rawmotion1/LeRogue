@@ -188,7 +188,7 @@ end
 for _,v in pairs(progressive) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
 end
-if mq.TLO.Me.AltAbility(1506)() ~= nil then table.insert(spells.myCombatAbilities, 1506) end
+
 
 --Set debuffs
 for _,v in pairs(mark) do
@@ -229,6 +229,7 @@ end
 if mq.TLO.Me.AltAbility(3514)() ~= nil then table.insert(spells.myBurn, 3514) end
 if mq.TLO.Me.AltAbility(1410)() ~= nil then table.insert(spells.myBurn, 1410) end
 if mq.TLO.Me.AltAbility(378)() ~= nil then table.insert(spells.myBurn, 378) end
+if mq.TLO.Me.AltAbility(1506)() ~= nil then table.insert(spells.myBurn, 1506) end
 for _,v in pairs(toxicblade) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myBurn, mq.TLO.Spell(v).RankName()) break end
 end

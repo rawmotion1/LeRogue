@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.3.0'
+local version = '3.3.1'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
