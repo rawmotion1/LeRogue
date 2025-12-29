@@ -188,6 +188,7 @@ end
 for _,v in pairs(progressive) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
 end
+if mq.TLO.Me.CombatAbility(mq.TLO.Spell("Queseris' Dagger").RankName()) ~= nil then table.insert(spells.myCombatAbilities, mq.TLO.Spell("Queseris' Dagger").RankName()) end
 
 
 --Set debuffs
