@@ -157,6 +157,13 @@ local calm = {
     'reprieve',
     'respite'
 }
+local hiatus = {
+    'hiatus v',
+    'convalesce',
+    "night's calming",
+    'relax',
+    'hiatus',
+}
 local reflex = {
     'practiced reflexes',
     'conditioned reflexes'
@@ -238,6 +245,9 @@ end
 --Set other
 for _,v in pairs(calm) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.calm = mq.TLO.Spell(v).RankName() break end
+end
+for _,v in pairs(hiatus) do
+    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.hiatus = mq.TLO.Spell(v).RankName() break end
 end
 for _,v in pairs(reflex) do
     if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.reflex = mq.TLO.Spell(v).RankName() break end

@@ -1,6 +1,6 @@
 --LeRogue.lua
 --by Rawmotion
-local version = '3.3.2'
+local version = '3.4.0'
 --- @type Mq
 local mq = require('mq')
 --- @type ImGui
@@ -111,6 +111,8 @@ local function setDefaults(s)
 	if s == 'all' or rogSettings.dragcorpses == nil then rogSettings.dragcorpses = 'on' end
 	if s == 'all' or rogSettings.minlevel == nil then rogSettings.minlevel = 75 end
 	if s == 'all' or rogSettings.ligament == nil then rogSettings.ligament = 'on' end
+	if s == 'all' or rogSettings.hiatus == nil then rogSettings.hiatus = 'on' end
+	if s == 'all' or rogSettings.intimidation == nil then rogSettings.intimidation = 'on' end
 	for k,v in pairs(rogSettings) do print('\at[LeRogue]\ao ',k,": \ay",color(v)) end
 	saveSettings()
 end
@@ -440,11 +442,17 @@ end
 local function doOther()
   	execute('disarm')
     execute('hide')
-	execute('intimidation')
+	if rogSettings.intimidation == 'on' then
+		execute('intimidation')
+	end
 end
 
 local function breathe()
-	execute(other.calm, 'buff')
+	if rogSettings.hiatus == 'on' then
+		execute(other.hiatus, 'buff')
+	else
+		execute(other.calm, 'buff')
+	end
 end
 
 local function doBurn()
@@ -783,7 +791,7 @@ local lvlUpdated
 local Open, ShowUI = true, true
 local function buildLrWindow()
 	local update
-	ImGui.SetWindowSize(240, 500, ImGuiCond.Once)
+	ImGui.SetWindowSize(240, 550)
 	local x, y = ImGui.GetContentRegionAvail()
 	local buttonHalfWidth = (x / 2) - 4
 	local buttonThirdWidth = (x / 4) - 1
@@ -804,6 +812,9 @@ local function buildLrWindow()
 	if update then boolSwitch() end
 
 	boolSettings.ligament, update = ImGui.Checkbox('Ligament slice', boolSettings.ligament)
+	if update then boolSwitch() end
+
+	boolSettings.intimidation, update = ImGui.Checkbox('Intimidation', boolSettings.intimidation)
 	if update then boolSwitch() end
 
     ImGui.Text('Add/remove clickies')
@@ -837,6 +848,12 @@ local function buildLrWindow()
 
     boolSettings.stayalive, update = ImGui.Checkbox('Use defense', boolSettings.stayalive)
 	if update then boolSwitch() end
+
+	boolSettings.hiatus, update = ImGui.Checkbox('Use Hiatus line', boolSettings.hiatus)
+	if update then boolSwitch() end
+	if (ImGui.IsItemHovered()) then
+        ImGui.SetTooltip("Use Hiatus line instead of Respite line (recommended at high levels).")
+	end
 
     ImGui.Separator()
 
@@ -929,8 +946,16 @@ while not terminate do
 		if engaged() then doOther() end
 		if burnNow == true then doBurn() burnNow = false end
 
-		if not engaged() and goodToGo() and mq.TLO.Me.PctEndurance() < 18 then
+		--calm
+		if goodToGo() and mq.TLO.Me.PctEndurance() < 10 and (rogSettings.hiatus == 'on' or (rogSettings.hiatus == 'off' and not engaged())) then
 			breathe()
+		end
+
+		if mq.TLO.Me.PctEndurance() >= 25 and mq.TLO.Me.Song(other.calm)() ~= nil then
+			mq.cmd('/removebuff '..other.calm)
+		end
+		if mq.TLO.Me.PctEndurance() >= 33 and mq.TLO.Me.Song(other.hiatus)() ~= nil then
+			mq.cmd('/removebuff '..other.hiatus)
 		end
 
 		--rebuff
