@@ -14,6 +14,64 @@ local gui = {}
 local WIDTH, HEIGHT = 240, 550
 local draggingLevel = false -- min level is saved when the slider is let go, not on every step
 
+-- Colours: poison green and dark orange (red, green, blue, alpha)
+local GREEN = { .50, .95, .20, 1 }
+local ORANGE = { 1.0, .55, .0, 1 }
+local THEME = {
+	{ 'WindowBg',         .06, .09, .05, .95 },
+	{ 'Border',           .55, .30, .00, .70 },
+	{ 'TitleBg',          .10, .22, .05, 1 },
+	{ 'TitleBgActive',    .20, .42, .08, 1 },
+	{ 'TitleBgCollapsed', .10, .22, .05, 1 },
+	{ 'FrameBg',          .12, .22, .08, 1 },
+	{ 'FrameBgHovered',   .20, .35, .10, 1 },
+	{ 'FrameBgActive',    .26, .46, .12, 1 },
+	{ 'CheckMark',        .50, .95, .20, 1 },
+	{ 'SliderGrab',       .85, .45, .00, 1 },
+	{ 'SliderGrabActive', 1.0, .58, .10, 1 },
+	{ 'Button',           .70, .35, .00, 1 },
+	{ 'ButtonHovered',    .88, .48, .05, 1 },
+	{ 'ButtonActive',     1.0, .60, .12, 1 },
+	{ 'Separator',        .30, .50, .12, .70 },
+}
+
+local function pushTheme()
+	for _, c in ipairs(THEME) do ImGui.PushStyleColor(ImGuiCol[c[1]], c[2], c[3], c[4], c[5]) end
+end
+
+-- Nightshade, Blade of Entropy, drawn from the game's own item icon sheets (A_DragItem).
+-- Item icon numbers start at 500 there, so icon N is cell N - 500.
+local NIGHTSHADE_ICON = 1518
+local ICON_OFFSET = 500
+local ICON_SIZE = 20
+local itemIcons = nil -- looked up on first draw
+
+-- Draw the icon in the title bar, just left of the title. ImGui has no slot for that, so we
+-- widen the clip area to the title bar, draw there, and put the cursor back.
+local function drawTitleIcon(title)
+	itemIcons = itemIcons or mq.FindTextureAnimation('A_DragItem')
+	if not itemIcons then return end
+
+	local winX, winY = ImGui.GetWindowPos()
+	local winW = ImGui.GetWindowWidth()
+	local barH = ImGui.GetFrameHeight()
+	local size = math.min(ICON_SIZE, barH - 2)
+	local textW = ImGui.CalcTextSize(title)
+	local align = ImGui.GetStyle().WindowTitleAlign.x -- 0.5 = centred title
+	local x = winX + (winW - textW) * align - size - 4
+	local y = winY + (barH - size) / 2
+
+	local cursorX, cursorY = ImGui.GetCursorPos()
+	ImGui.PushClipRect(winX, winY, winX + winW, winY + barH, false)
+	-- A soft orange tile behind it: the blade is thin and dark, and vanishes on dark green
+	ImGui.GetWindowDrawList():AddRectFilled(ImVec2(x, y), ImVec2(x + size, y + size), ImGui.GetColorU32(.95, .62, .25, 1), 3)
+	ImGui.SetCursorScreenPos(x, y)
+	itemIcons:SetTextureCell(NIGHTSHADE_ICON - ICON_OFFSET)
+	ImGui.DrawTextureAnimation(itemIcons, size, size)
+	ImGui.PopClipRect()
+	ImGui.SetCursorPos(cursorX, cursorY)
+end
+
 -- A checkbox for an on/off setting
 local function settingCheckbox(label, key, tooltip)
 	local checked, pressed = ImGui.Checkbox(label, config.isOn(key))
@@ -37,9 +95,9 @@ local function drawContents()
 	if ImGui.Button('Pause') then commands.togglePause() end
 	ImGui.SameLine()
 	if state.paused then
-		ImGui.TextColored(.75, 0, 0, 1, 'Paused')
+		ImGui.TextColored(.85, .15, .05, 1, 'Paused')
 	else
-		ImGui.TextColored(0, .75, 0, 1, 'Running '..config.version)
+		ImGui.TextColored(GREEN[1], GREEN[2], GREEN[3], GREEN[4], 'Running '..config.version)
 	end
 	ImGui.Separator()
 
@@ -94,9 +152,9 @@ local function drawContents()
 	settingCheckbox('Auto-hide', 'hide')
 	ImGui.SameLine()
 	if mq.TLO.Me.Invis('SOS')() then
-		ImGui.TextColored(0, .75, .75, 1, '\xee\xa3\xb4'..' Hidden')
+		ImGui.TextColored(GREEN[1], GREEN[2], GREEN[3], GREEN[4], '\xee\xa3\xb4'..' Hidden')
 	else
-		ImGui.TextColored(0, .75, .75, 1, '\xee\xa3\xb5'..' Visible')
+		ImGui.TextColored(ORANGE[1], ORANGE[2], ORANGE[3], ORANGE[4], '\xee\xa3\xb5'..' Visible')
 	end
 	if ImGui.Button('Pause hide 20', half, 0) then routines.pauseHide(20) end
 	ImGui.SameLine()
@@ -120,11 +178,16 @@ local function drawContents()
 end
 
 local function window()
+	pushTheme() -- before Begin, so the title bar and border get the colours too
 	ImGui.SetNextWindowSize(WIDTH, HEIGHT, ImGuiCond.Always)
 	local open, show = ImGui.Begin('LeRogue', state.windowOpen, ImGuiWindowFlags.NoResize)
 	state.windowOpen = open
-	if show then drawContents() end
+	if show then
+		drawTitleIcon('LeRogue')
+		drawContents()
+	end
 	ImGui.End()
+	ImGui.PopStyleColor(#THEME)
 end
 
 function gui.register()

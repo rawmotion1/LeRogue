@@ -6,7 +6,7 @@
 local mq = require('mq')
 
 local config = {
-	version = '3.4.0',
+	version = '4.0.0',
 	settings = {},        -- e.g. settings.dot = 'on', settings.minlevel = 75
 	combatClickies = {},  -- item IDs used in the combat routine
 	burnClickies = {},    -- item IDs used in the burn routine
