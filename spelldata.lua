@@ -1,260 +1,111 @@
+-- Which abilities this character has. Each line lists its ranks best-first; the
+-- character gets the best one they know. Worked out once, when LeRogue starts
+-- (restart LeRogue after learning a new rank).
+
 --- @type Mq
 local mq = require('mq')
 
+---------------------------- Ability lines ----------------------------
+
+-- Combat abilities
+local strike = { 'assault x', 'mayhem', 'shadowstrike', 'blitzstrike', 'fellstrike', 'barrage', 'incursion', 'onslaught', 'battery' }
+local stun = { 'ambush xi', 'bamboozle', 'ambuscade', 'bushwhack', 'lie in wait', 'surprise attack', 'beset', 'accost', 'assail', 'ambush' }
+local puncture = { 'invidious puncture', 'disorienting puncture', 'vindictive puncture', 'vexatious puncture', 'disassociative puncture' }
+local blade = { 'holdout blade Vii', 'veiled blade', 'obfuscated blade', 'cloaked blade', 'secret blade', 'hidden blade', 'holdout blade' }
+local distract = { 'misdirection ix', 'trickery', 'beguile', 'cozen', 'diversion', 'disorientation', 'deceit', 'delusion', 'misdirection' }
+local vision = { 'thief\'s sight', 'thief\'s vision', 'thief\'s eyes' }
+local progressive = { 'reciprocal weapons', 'ecliptic weapons', 'composite weapons', 'dissident weapons', 'dichotomic weapons' }
+local dagger = { "Queseris' Dagger" }
+
+-- Debuffs
+local mark = { 'easy mark x', 'unsuspecting mark', 'foolish mark', 'naive mark', 'dim-witted mark', 'wide-eyed mark', 'gullible mark', 'simple mark', 'easy mark' }
+local pin = { 'pinpoint fault', 'pinpoint defects', 'pinpoint shortcomings', 'pinpoint deficiencies', 'pinpoint liabilities', 'pinpoint flaws', 'pinpoint vitals' }
+
+-- DoTs
+local jugular = { 'jugular slash xi', 'jugular hew', 'jugular rend', 'jugular cut', 'jugular strike', 'jugular hack', 'jugular lacerate', 'jugular gash', 'jugular sever' }
+local cut = { 'bleed x', 'carve', 'lance', 'slash', 'slice', 'hack', 'gash', 'lacerate', 'wound', 'bleed' }
+
+-- Rotating discs, named by the reuse timer they share
+local timerthree = { 'executioner discipline', 'eradicator\'s discipline', 'assassin discipline' }
+local timerfour = { 'Twisted Chance Discipline' }
+local timerfive = { 'weapon covenant', 'weapon bond', 'weapon affiliation' }
+local timersix = { 'Frenzied Stabbing Discipline' }
+local timerfourteen = { 'reckless edge discipline', 'ragged edge discipline', 'razor\'s edge discipline' }
+local timerfifteen = { 'visaphen discipline', 'crinotoxin discipline', 'exotoxin discipline', 'chelicerae discipline', 'aculeus discipline', 'arcwork discipline', 'aspbleeder discipline' }
+local timersixteen = { 'Knifeplay Discipline' }
+
+-- Burn
+local toxicblade = { 'toxic blade viii', 'venomous blade', 'netherbian blade', 'drachnid blade', 'skorpikis blade', 'reefcrawler blade', 'asp blade', 'toxic blade' }
+
+-- Other
+local calm = { 'breather', 'rest', 'reprieve', 'respite' }
+local hiatus = { 'hiatus v', 'convalesce', "night's calming", 'relax', 'hiatus' }
+local reflex = { 'practiced reflexes', 'conditioned reflexes' }
+local nimble = { 'Nimble Discipline' }
+
+-- AAs (by ID)
+local AA = {
+	ligamentSlice = 672,
+	dot = 670,
+	burns = { 3514, 1410, 378, 1506 },
+	tumble = 673,
+	premonition = 1134,
+	escape = 102,
+}
+
+---------------------------- Helpers ----------------------------
+
+-- Rank name of the best ability in a line that this character knows, or nil
+local function best(line)
+	for _, name in ipairs(line) do
+		local rank = mq.TLO.Spell(name).RankName()
+		if rank and mq.TLO.Me.CombatAbility(rank)() then return rank end
+	end
+	return nil
+end
+
+local function hasAA(id)
+	return mq.TLO.Me.AltAbility(id)() ~= nil
+end
+
+-- Best known rank of each line, in order, skipping lines the character doesn't have
+local function bestOfEach(lines)
+	local result = {}
+	for _, line in ipairs(lines) do
+		local rank = best(line)
+		if rank then table.insert(result, rank) end
+	end
+	return result
+end
+
+---------------------------- This character's lists ----------------------------
+
 local spells = {}
-spells.myCombatAbilities = {}
-spells.myDebuffs = {}
-spells.myDots = {}
-spells.myDiscs = {}
+
+spells.myCombatAbilities = bestOfEach({ strike, stun, puncture, blade, distract, vision, progressive, dagger })
+
+spells.myDebuffs = bestOfEach({ mark, pin })
+if hasAA(AA.ligamentSlice) then table.insert(spells.myDebuffs, AA.ligamentSlice) end
+
+spells.myDots = bestOfEach({ jugular, cut })
+if hasAA(AA.dot) then table.insert(spells.myDots, AA.dot) end
+
+spells.myDiscs = bestOfEach({ timerfour, timerthree, timerfourteen, timersix, timersixteen, timerfifteen, timerfive })
+
 spells.myBurn = {}
-spells.other = {}
+for _, id in ipairs(AA.burns) do
+	if hasAA(id) then table.insert(spells.myBurn, id) end
+end
+for _, rank in ipairs(bestOfEach({ toxicblade })) do table.insert(spells.myBurn, rank) end
 
-local strike = {
-    'assault x',
-    'mayhem',
-    'shadowstrike',
-    'blitzstrike',
-    'fellstrike',
-    'barrage',
-    'incursion',
-    'onslaught',
-    'battery'
+spells.other = {
+	calm = best(calm),
+	hiatus = best(hiatus),
+	reflex = best(reflex),
+	nimble = best(nimble),
+	tumble = hasAA(AA.tumble) and AA.tumble or nil,
+	premonition = hasAA(AA.premonition) and AA.premonition or nil,
+	escape = hasAA(AA.escape) and AA.escape or nil,
 }
-local stun = {
-    'ambush xi',
-    'bamboozle',
-    'ambuscade',
-    'bushwhack',
-    'lie in wait',
-    'surprise attack',
-    'beset',
-    'accost',
-    'assail',
-    'ambush'
-}
-local puncture = {
-    'invidious puncture',
-    'disorienting puncture',
-    'vindictive puncture',
-    'vexatious puncture',
-    'disassociative puncture'
-}
-local blade = {
-    'holdout blade Vii',
-    'veiled blade',
-    'obfuscated blade',
-    'cloaked blade',
-    'secret blade',
-    'hidden blade',
-    'holdout blade'
-}
-local distract = {
-    'misdirection ix',
-    'trickery',
-    'beguile',
-    'cozen',
-    'diversion',
-    'disorientation',
-    'deceit',
-    'delusion',
-    'misdirection'
-}
-local vision = {
-    'thief\'s sight',
-    'thief\'s vision',
-    'thief\'s eyes'
-}
-local progressive = {
-    'reciprocal weapons',
-    'ecliptic weapons',
-    'composite weapons',
-    'dissident weapons',
-    'dichotomic weapons'
-}
-local mark = {
-    'easy mark x',
-    'unsuspecting mark',
-    'foolish mark',
-    'naive mark',
-    'dim-witted mark',
-    'wide-eyed mark',
-    'gullible mark',
-    'simple mark',
-    'easy mark'
-}
-local pin = {
-    'pinpoint fault',
-    'pinpoint defects',
-    'pinpoint shortcomings',
-    'pinpoint deficiencies',
-    'pinpoint liabilities',
-    'pinpoint flaws',
-    'pinpoint vitals'
-}
-local jugular = {
-    'jugular slash xi',
-    'jugular hew',
-    'jugular rend',
-    'jugular cut',
-    'jugular strike',
-    'jugular hack',
-    'jugular lacerate',
-    'jugular gash',
-    'jugular sever'
-}
-local cut = {
-    'bleed x',
-    'carve',
-    'lance',
-    'slash',
-    'slice',
-    'hack',
-    'gash',
-    'lacerate',
-    'wound',
-    'bleed'
-}
-local timerthree = {
-    'executioner discipline',
-    'eradicator\'s discipline',
-    'assassin discipline'
-}
-local timerfour = 'Twisted Chance Discipline'
-local timersix = 'Frenzied Stabbing Discipline'
-local timerfive = {
-    'weapon covenant',
-    'weapon bond',
-    'weapon affiliation'
-}
-local timerfourteen = {
-    'reckless edge discipline',
-    'ragged edge discipline',
-    'razor\'s edge discipline'
-}
-local timerfifteen = {
-    'visaphen discipline',
-    'crinotoxin discipline',
-    'exotoxin discipline',
-    'chelicerae discipline',
-    'aculeus discipline',
-    'arcwork discipline',
-    'aspbleeder discipline'
-}
-local timersixteen = 'Knifeplay Discipline'
-local toxicblade = {
-    'toxic blade viii',
-    'venomous blade',
-    'netherbian blade',
-    'drachnid blade',
-    'skorpikis blade',
-    'reefcrawler blade',
-    'asp blade',
-    'toxic blade',
-}
-local calm = {
-    'breather',
-    'rest',
-    'reprieve',
-    'respite'
-}
-local hiatus = {
-    'hiatus v',
-    'convalesce',
-    "night's calming",
-    'relax',
-    'hiatus',
-}
-local reflex = {
-    'practiced reflexes',
-    'conditioned reflexes'
-}
-local nimble = mq.TLO.Spell('Nimble Discipline').RankName()
-local tumble = 673
-local premonition = 1134
-local escape = 102
-
---Set combat abilities
-for _,v in pairs(strike) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(stun) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(puncture) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(blade) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(distract) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(vision) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(progressive) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myCombatAbilities, mq.TLO.Spell(v).RankName()) break end
-end
-if mq.TLO.Me.CombatAbility(mq.TLO.Spell("Queseris' Dagger").RankName()) ~= nil then table.insert(spells.myCombatAbilities, mq.TLO.Spell("Queseris' Dagger").RankName()) end
-
-
---Set debuffs
-for _,v in pairs(mark) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDebuffs, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(pin) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDebuffs, mq.TLO.Spell(v).RankName()) break end
-end
-if mq.TLO.Me.AltAbility(672)() ~= nil then table.insert(spells.myDebuffs, 672) end
-
---Set DOTs
-for _,v in pairs(jugular) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDots, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(cut) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDots, mq.TLO.Spell(v).RankName()) break end
-end
-if mq.TLO.Me.AltAbility(670)() ~= nil then table.insert(spells.myDots, 670) end
-
---Set rotating discs
-if mq.TLO.Me.CombatAbility(mq.TLO.Spell(timerfour).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(timerfour).RankName()) end
-for _,v in pairs(timerthree) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(timerfourteen) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(v).RankName()) break end
-end
-if mq.TLO.Me.CombatAbility(mq.TLO.Spell(timersix).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(timersix).RankName()) end
-if mq.TLO.Me.CombatAbility(mq.TLO.Spell(timersixteen).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(timersixteen).RankName()) end
-for _,v in pairs(timerfifteen) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(v).RankName()) break end
-end
-for _,v in pairs(timerfive) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myDiscs, mq.TLO.Spell(v).RankName()) break end
-end
-
---Set burns
-if mq.TLO.Me.AltAbility(3514)() ~= nil then table.insert(spells.myBurn, 3514) end
-if mq.TLO.Me.AltAbility(1410)() ~= nil then table.insert(spells.myBurn, 1410) end
-if mq.TLO.Me.AltAbility(378)() ~= nil then table.insert(spells.myBurn, 378) end
-if mq.TLO.Me.AltAbility(1506)() ~= nil then table.insert(spells.myBurn, 1506) end
-for _,v in pairs(toxicblade) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then table.insert(spells.myBurn, mq.TLO.Spell(v).RankName()) break end
-end
-
---Set other
-for _,v in pairs(calm) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.calm = mq.TLO.Spell(v).RankName() break end
-end
-for _,v in pairs(hiatus) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.hiatus = mq.TLO.Spell(v).RankName() break end
-end
-for _,v in pairs(reflex) do
-    if mq.TLO.Me.CombatAbility(mq.TLO.Spell(v).RankName())() then spells.other.reflex = mq.TLO.Spell(v).RankName() break end
-end
-if mq.TLO.Me.CombatAbility(mq.TLO.Spell(nimble).RankName())() then spells.other.nimble = mq.TLO.Spell(nimble).RankName() end
-if mq.TLO.Me.AltAbility(tumble)() ~= nil then spells.other.tumble = tumble end
-if mq.TLO.Me.AltAbility(premonition)() ~= nil then spells.other.premonition = premonition end
-if mq.TLO.Me.AltAbility(escape)() ~= nil then spells.other.escape = escape end
 
 return spells

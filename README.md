@@ -46,12 +46,14 @@ Virtually everything is configurable via the GUI, but the following commands can
 
 `/lr combat on/off` --- enables/disables combat abilities\
 `/lr disc on/off` --- enables/disables rotating discs\
-`/lr dot on/off` --- enables/disables DoTs
+`/lr dot on/off` --- enables/disables DoTs\
+`/lr intimidation on/off` --- enables/disables intimidation
 
 `/lr hide on/off` --- enables/disables auto hide/sneak\
 `/lr pausehide x` --- makes you visible and pauses autohide for x seconds
 
-`/lr stayalive on/off` --- when on, will use a series of defensive abilities to keep you from dying
+`/lr stayalive on/off` --- when on, will use a series of defensive abilities to keep you from dying\
+`/lr hiatus on/off` --- when on, uses the Hiatus line for endurance instead of the Respite line
 
 `/lr glyph on/off` --- use power glyph during burn\
 `/lr burn` --- do a big burn\
