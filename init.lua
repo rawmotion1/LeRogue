@@ -803,7 +803,6 @@ local lvlUpdated
 local Open, ShowUI = true, true
 local function buildLrWindow()
 	local update
-	ImGui.SetWindowSize(240, 550)
 	local x, y = ImGui.GetContentRegionAvail()
 	local buttonHalfWidth = (x / 2) - 4
 	local buttonThirdWidth = (x / 4) - 1
@@ -920,7 +919,9 @@ local function buildLrWindow()
 end
 
 local function lrWindow()
-    Open, ShowUI = ImGui.Begin('LeRogue', Open)
+	-- Fixed size: set before the window opens, and NoResize removes the drag grip
+	ImGui.SetNextWindowSize(240, 550, ImGuiCond.Always)
+    Open, ShowUI = ImGui.Begin('LeRogue', Open, ImGuiWindowFlags.NoResize)
     if ShowUI then
         buildLrWindow()
     end
