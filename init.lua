@@ -321,11 +321,11 @@ local function safeToCast()
 	return goodToGo()
 	and not	mq.TLO.Me.Moving()
 	and mq.TLO.SpawnCount('npc radius 60')() < 1
-	and mq.TLO.Me.XTarget() < 1
+	and notNil(mq.TLO.Me.XTarget()) < 1
 	and mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() == nil
 	and mq.TLO.Me.Song('Evader\'s Invisibility').ID() == nil
 	and mq.TLO.Me.Buff('Revival Sickness').ID() == nil
-	and not (mq.TLO.Me.PctHPs() < 26)
+	and not (notNil(mq.TLO.Me.PctHPs()) < 26)
 end
 
 --------------------------Combat routine--------------------------
@@ -522,12 +522,14 @@ local function reflexes()
 	end
 end
 local function applyPoison()
+	if not poison then return end -- no poison-summoning legs equipped
 	if mq.TLO.FindItemCount(poison)() > 0 and mq.TLO.Me.Buff(mq.TLO.FindItem(poison).Clicky()).ID() == nil then
 		execute(poison, 'click')
 	end
 end
 
 local function summonPoison()
+	if not legs or not poison then return end
 	if mq.TLO.FindItem(legs).Clicky() and mq.TLO.Me.ItemReady(legs)() and mq.TLO.FindItemCount(poison)() < 20 then
 		execute(legs, 'click')
 	end
@@ -622,6 +624,15 @@ local where
 local returnLoc = {}
 local corpseLocation = {}
 
+local pausedMacro = false
+local function resumeMacro()
+	if pausedMacro and mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
+		print('\at[LeRogue] \ayUnpausing macro')
+		mq.cmd('/squelch /mqp off')
+	end
+	pausedMacro = false
+end
+
 local function dragCorpse(id, name)
 	if mq.TLO.Navigation.PathExists('id '..id)() then
 		print('\at[LeRogue] \agGoing to pull ', name)
@@ -629,6 +640,7 @@ local function dragCorpse(id, name)
 		if mq.TLO.Macro() and mq.TLO.Macro.Paused() == false then
 			print('\at[LeRogue] \ayPausing macro')
 			mq.cmd('/squelch /mqp on')
+			pausedMacro = true
 		end
 
 		mq.delay(2000)
@@ -640,7 +652,14 @@ local function dragCorpse(id, name)
 
 	while mq.TLO.Navigation.Active() do
 		if pause == true then mq.cmd('/squelch /nav stop') break end
-		if mq.TLO.Spawn(id).Distance() < 75 and mq.TLO.Spawn(id).LineOfSight() then
+		local dist = mq.TLO.Spawn(id).Distance()
+		if dist == nil then -- corpse is gone (rezzed, summoned or decayed)
+			mq.cmd('/squelch /nav stop')
+			print('\at[LeRogue] \ayLost track of ', name)
+			resumeMacro()
+			return
+		end
+		if dist < 75 and mq.TLO.Spawn(id).LineOfSight() then
 			mq.cmd('/squelch /nav stop')
 			mq.cmdf('/target %s', name)
 			mq.cmd('/corpsedrag')
@@ -652,15 +671,17 @@ local function dragCorpse(id, name)
 	consent = true
 	mq.delay(2000)
 	mq.doevents()
-	if consent == false then return end
+	if consent == false then resumeMacro() return end
 
 	mq.cmdf('/squelch /nav locxyz %s, %s, %s', returnLoc.x, returnLoc.y, returnLoc.z)
 	print('\at[LeRogue] \agBringing corpse back to your ', where)
 	while mq.TLO.Navigation.Active() do
 		if pause == true then mq.cmd('/squelch /nav stop') break end
-		local x = math.abs(mq.TLO.Me.X() - returnLoc.x)
-		local y = math.abs(mq.TLO.Me.Y() - returnLoc.y)
-		local z = math.abs(mq.TLO.Me.Z() - returnLoc.z)
+		local mx, my, mz = mq.TLO.Me.X(), mq.TLO.Me.Y(), mq.TLO.Me.Z()
+		if mx == nil or my == nil or mz == nil then break end -- zoned or died mid-drag
+		local x = math.abs(mx - returnLoc.x)
+		local y = math.abs(my - returnLoc.y)
+		local z = math.abs(mz - returnLoc.z)
 		if x < 10 and y < 10 and z < 10 then
 			mq.cmd('/squelch /nav stop')
 			mq.delay(1000)
@@ -669,10 +690,7 @@ local function dragCorpse(id, name)
 		end
 		mq.delay(NAV_POLL_MS)
 	end
-	if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
-		print('\at[LeRogue] \ayUnpausing macro')
-		mq.cmd('/squelch /mqp off')
-	end
+	resumeMacro()
 end
 
 local function setLoc()
@@ -978,12 +996,14 @@ while not terminate do
 		print('\at[LeRogue] \arPAUSED (type /lr pause to unpause)')
 		mq.delay(30000, stop)
 	end
-	if pause == false then
+	if pause == false and not mq.TLO.Me.Zoning() then
 		mq.doevents()
 		local currentTime = os.time()
 
 		if rogSettings.stayalive == 'on' and goodToGo() then stayAlive() end
-		if mq.TLO.Cursor.ID() == poison then mq.cmd('/autoinv') mq.delay(500) end
+		-- 'poison and' matters: without poison legs both sides are nil, which used to
+		-- trigger /autoinv plus a 500ms wait on every single pass
+		if poison and mq.TLO.Cursor.ID() == poison then mq.cmd('/autoinv') mq.delay(500) end
 		
 		--combat
 		if engaged() and rogSettings.combat == 'on' then 
@@ -1002,10 +1022,10 @@ while not terminate do
 			breathe()
 		end
 
-		if mq.TLO.Me.PctEndurance() >= 25 and mq.TLO.Me.Song(other.calm)() ~= nil then
+		if other.calm and mq.TLO.Me.PctEndurance() >= 25 and mq.TLO.Me.Song(other.calm)() ~= nil then
 			mq.cmd('/removebuff '..other.calm)
 		end
-		if mq.TLO.Me.PctEndurance() >= 33 and mq.TLO.Me.Song(other.hiatus)() ~= nil then
+		if other.hiatus and mq.TLO.Me.PctEndurance() >= 33 and mq.TLO.Me.Song(other.hiatus)() ~= nil then
 			mq.cmd('/removebuff '..other.hiatus)
 		end
 
