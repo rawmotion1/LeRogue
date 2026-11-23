@@ -17,6 +17,7 @@ local abilities = {}
 -- After using an ability we wait until it shows its cooldown, so it can't be fired twice.
 -- A successful use ends the wait at once; the timeout only matters when it failed.
 local ACTION_TIMEOUT_MS = 1000
+local CAST_TIMEOUT_MS = 6000 -- longest we wait for a clicky's cast to finish
 local FAIL_BACKOFF_MS = 2000 -- skip an ability this long after it didn't fire (e.g. "must be behind")
 local DISC_TRIES = 3         -- attempts to start a rotating disc before moving on
 local failedUntil = {}       -- ability -> mq.gettime() until which it's skipped
@@ -172,9 +173,14 @@ function abilities.use(name, purpose)
 	if MESSAGES[purpose] then print('\at[LeRogue] '..MESSAGES[purpose], displayName(name, kind)) end
 
 	-- Worked once it's on cooldown, or once a cast has started (clickies with a cast time)
-	local function worked() return not isReady(name, kind) or mq.TLO.Me.Casting() ~= nil end
+	local function casting() return mq.TLO.Me.Casting() ~= nil end
+	local function worked() return not isReady(name, kind) or casting() end
 	mq.delay(ACTION_TIMEOUT_MS, worked)
-	if worked() or purpose == 'live' then
+	local itWorked = worked()
+	-- Let a cast finish: nothing else can be used meanwhile, and stopping here would make
+	-- the next check see "casting, can't act" and end the burn list early
+	if casting() then mq.delay(CAST_TIMEOUT_MS, function() return not casting() end) end
+	if itWorked or purpose == 'live' then
 		failedUntil[name] = nil
 	else
 		failedUntil[name] = mq.gettime() + FAIL_BACKOFF_MS
