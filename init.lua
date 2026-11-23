@@ -45,6 +45,8 @@ local ACTION_TIMEOUT_MS = 1000
 local FAIL_BACKOFF_MS = 2000 -- skip an ability this long after it didn't fire (e.g. "must be behind")
 local DISC_TRIES = 3         -- attempts to start a rotating disc before moving on
 local failedUntil = {}       -- ability -> mq.gettime() until which it's skipped
+local CORPSE_SCAN_MS = 3000  -- how often to look for group members' corpses to drag
+local nextCorpseScan = 0
 
 local function color(val)
 	if val == 'on' then val = '\agon'
@@ -318,44 +320,43 @@ local function engaged()
 end	
 
 local function safeToCast()
-	return goodToGo()
+	-- Cheap checks first; the NPC radius search is the most expensive, so it goes last
+	return notNil(mq.TLO.Me.XTarget()) < 1
 	and not	mq.TLO.Me.Moving()
-	and mq.TLO.SpawnCount('npc radius 60')() < 1
-	and notNil(mq.TLO.Me.XTarget()) < 1
+	and goodToGo()
 	and mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() == nil
 	and mq.TLO.Me.Song('Evader\'s Invisibility').ID() == nil
 	and mq.TLO.Me.Buff('Revival Sickness').ID() == nil
 	and not (notNil(mq.TLO.Me.PctHPs()) < 26)
+	and mq.TLO.SpawnCount('npc radius 60')() < 1
 end
 
 --------------------------Combat routine--------------------------
 
-local function checks(n, c, k)
-	local passed = true
-	if pause == true then passed = false end
-	if not goodToGo() then passed = false end
-	if c == 1 and mq.TLO.Me.Ability(n)() == nil then passed = false end
-	if c == 2 and mq.TLO.Me.CombatAbility(n)() == nil then passed = false end
-	if c == 3 and mq.TLO.FindItemCount(n)() < 1 then passed = false end
-	if c == 4 and mq.TLO.Me.AltAbility(n)() == nil then passed = false end
+-- Looked up once instead of on every check
+local beguileRank = mq.TLO.Spell('beguile').RankName()
+local knifeplayRank = mq.TLO.Spell('Knifeplay Discipline').RankName()
 
-	if c == 1 and not mq.TLO.Me.AbilityReady(n)() then
-		passed = false
-	elseif c == 2 and not mq.TLO.Me.CombatAbilityReady(n)() then
-		passed = false
-	elseif c == 3 and not mq.TLO.Me.ItemReady(n)() then
-		passed = false
-	elseif c == 4 and not mq.TLO.Me.AltAbilityReady(n)() then
-		passed = false
-	end
-	if (c == 2 or c == 3) and mq.TLO.Spell(n).SpellType() == 'Beneficial' and (mq.TLO.Spell(n).Stacks() == false and mq.TLO.Spell(n..' Effect').Stacks() == false) then passed = false end
-	if (k == 'dot' or k == 'debuff') and notNil(mq.TLO.Target.PctHPs()) < 20 then passed = false end
-	if n == 672 and rogSettings.ligament == 'off' then passed = false end
-	if n == mq.TLO.Spell('beguile').RankName() and mq.TLO.Me.TargetOfTarget() == mq.TLO.Me.Name() then passed = false end
-	if n == mq.TLO.Spell('Knifeplay Discipline').RankName() and mq.TLO.Me.Song("Rogue's Fury")() ~= nil then passed = false end
-	if string.find(n, 'Thief') and mq.TLO.Me.Song('thief')() ~= nil then passed = false end
-	if c == 3 and mq.TLO.FindItem(n).Prestige() == true and mq.TLO.Me.Subscription() ~= 'GOLD' then passed = false end
-	return passed
+-- Can ability n (category c, kind k) be used right now? Mid-fight most abilities are
+-- just on cooldown, so the cooldown check comes first and we bail out after one lookup.
+local function checks(n, c, k)
+	if pause == true then return false end
+	if c == 1 and not mq.TLO.Me.AbilityReady(n)() then return false end
+	if c == 2 and not mq.TLO.Me.CombatAbilityReady(n)() then return false end
+	if c == 3 and (mq.TLO.FindItemCount(n)() < 1 or not mq.TLO.Me.ItemReady(n)()) then return false end
+	if c == 4 and not mq.TLO.Me.AltAbilityReady(n)() then return false end
+	if not goodToGo() then return false end
+	if c == 1 and mq.TLO.Me.Ability(n)() == nil then return false end
+	if c == 2 and mq.TLO.Me.CombatAbility(n)() == nil then return false end
+	if c == 4 and mq.TLO.Me.AltAbility(n)() == nil then return false end
+	if (c == 2 or c == 3) and mq.TLO.Spell(n).SpellType() == 'Beneficial' and (mq.TLO.Spell(n).Stacks() == false and mq.TLO.Spell(n..' Effect').Stacks() == false) then return false end
+	if (k == 'dot' or k == 'debuff') and notNil(mq.TLO.Target.PctHPs()) < 20 then return false end
+	if n == 672 and rogSettings.ligament == 'off' then return false end
+	if n == beguileRank and mq.TLO.Me.TargetOfTarget() == mq.TLO.Me.Name() then return false end
+	if n == knifeplayRank and mq.TLO.Me.Song("Rogue's Fury")() ~= nil then return false end
+	if string.find(n, 'Thief') and mq.TLO.Me.Song('thief')() ~= nil then return false end
+	if c == 3 and mq.TLO.FindItem(n).Prestige() == true and mq.TLO.Me.Subscription() ~= 'GOLD' then return false end
+	return true
 end
 
 local function execute(name, kind)
@@ -430,50 +431,25 @@ local function execute(name, kind)
 		else
 			failedUntil[name] = mq.gettime() + FAIL_BACKOFF_MS
 		end
+		return true
 	end
 end
 
-local function doCombatAbilies()
-	for _,v in pairs(myCombatAbilities) do
-		if not engaged() or pause == true then break end
-		execute(v, 'combat')
+-- Use each ability in a list. Call only while engaged. Game state only changes when
+-- we yield, so engagement is re-checked only after an ability actually fired.
+-- Returns true if still engaged at the end.
+local function runList(list, kind)
+	for _,v in pairs(list) do
+		if pause == true then return false end
+		if execute(v, kind) and not engaged() then return false end
 	end
-end
-
-local function doDebuffs()
-	for _,v in pairs(myDebuffs) do
-		if not engaged() or pause == true then break end
-		execute(v, 'debuff')
-	end
-end
-
-local function doDots()
-	for _,v in pairs(myDots) do
-		if not engaged() or pause == true then break end
-		execute(v, 'dot')
-	end
-end
-
-local function doClickies()
-	for _,v in pairs(rogClickies) do
-		if not engaged() or pause == true then break end
-		execute(v, 'click')
-	end
-end
-
-local function doDiscs()
-	for _,v in pairs(myDiscs) do
-		if not engaged() or pause == true then break end
-		execute(v, 'rotate')
-	end
+	return true
 end
 
 local function doOther()
-  	execute('disarm')
-    execute('hide')
-	if rogSettings.intimidation == 'on' then
-		execute('intimidation')
-	end
+	local list = { 'disarm', 'hide' }
+	if rogSettings.intimidation == 'on' then table.insert(list, 'intimidation') end
+	return runList(list)
 end
 
 local function breathe()
@@ -487,15 +463,7 @@ end
 local function doBurn()
 	if engaged() then
 		print('\at[LeRogue] \arBUURRRRNNNNN!!!')
-		for _,v in pairs(myBurn) do
-			if not engaged() or pause == true then break end
-			execute(v, 'burn')
-		end
-		for _,v in pairs(burnClickies) do
-			if not engaged() or pause == true then break end
-			execute(v, 'click')
-		end
-        if rogSettings.glyph == 'on' then
+		if runList(myBurn, 'burn') and runList(burnClickies, 'click') and rogSettings.glyph == 'on' then
 			execute(5304, 'burn')
 		end
 	else
@@ -504,14 +472,7 @@ local function doBurn()
 end
 
 local function keepBurning()
-    for _,v in pairs(myBurn) do
-        if not engaged() or pause == true then break end
-        execute(v, 'burn')
-    end
-	for _,v in pairs(burnClickies) do
-		if not engaged() or pause == true then break end
-		execute(v, 'click')
-	end
+	return runList(myBurn, 'burn') and runList(burnClickies, 'click')
 end
 
 ------------------------------Safe to cast -----------------------------
@@ -1005,16 +966,17 @@ while not terminate do
 		-- trigger /autoinv plus a 500ms wait on every single pass
 		if poison and mq.TLO.Cursor.ID() == poison then mq.cmd('/autoinv') mq.delay(500) end
 		
-		--combat
-		if engaged() and rogSettings.combat == 'on' then 
-			doCombatAbilies()
-			doDebuffs()
-			doClickies()
+		--combat: engaged() is checked once here; runList re-checks it after anything fires
+		local fighting = engaged()
+		if fighting and rogSettings.combat == 'on' then
+			fighting = runList(myCombatAbilities, 'combat')
+				and runList(myDebuffs, 'debuff')
+				and runList(rogClickies, 'click')
 		end
-		if engaged() and rogSettings.disc == 'on' then doDiscs() end
-		if engaged() and rogSettings.dot == 'on' then doDots() end
-		if engaged() and rogSettings.burnalways == 'on' then keepBurning() end
-		if engaged() then doOther() end
+		if fighting and rogSettings.disc == 'on' then fighting = runList(myDiscs, 'rotate') end
+		if fighting and rogSettings.dot == 'on' then fighting = runList(myDots, 'dot') end
+		if fighting and rogSettings.burnalways == 'on' then fighting = keepBurning() end
+		if fighting then fighting = doOther() end
 		if burnNow == true then doBurn() burnNow = false end
 
 		--calm
@@ -1037,20 +999,20 @@ while not terminate do
 		end
 
 		--autohide
-		if rogSettings.hide == 'on' and not engaged() then
+		if rogSettings.hide == 'on' and not fighting then
 			autoHide()
 		elseif rogSettings.hide == 'paused' and currentTime >= myTimer then
 			rogSettings.hide = 'on'
 			print('\at[LeRogue] \agHide is back on')
 		end
 
-		--corpse pulling
-		if mq.TLO.Macro.Variable('ReturnToCamp')() == 1 or (mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone()) then
-			campUp = true
-		else
-			campUp = false
+		--corpse pulling: scanning every group member against every corpse is costly, so only every few seconds
+		if rogSettings.dragcorpses == 'on' and mq.gettime() >= nextCorpseScan then
+			nextCorpseScan = mq.gettime() + CORPSE_SCAN_MS
+			local campUp = mq.TLO.Macro.Variable('ReturnToCamp')() == 1
+				or (mq.TLO.Me.Fellowship.Campfire() and mq.TLO.Me.Fellowship.CampfireZone() == mq.TLO.Zone())
+			if campUp and notNil(mq.TLO.Me.XTarget()) < 1 then checkForDead() end
 		end
-		if rogSettings.dragcorpses == 'on' and campUp == true and mq.TLO.Me.XTarget() < 1 then checkForDead() end
 		if dragNow == true then manualDragCorpse() dragNow = false end
 	end
 	if not Open then return end
