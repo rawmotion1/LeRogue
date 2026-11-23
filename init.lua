@@ -33,6 +33,13 @@ local legs = mq.TLO.Me.Inventory(18).ID()
 local pause = false
 local myTimer = 0
 
+-- Timing (milliseconds). Game data only refreshes once per frame, so running the
+-- loop again within the same frame can't fire an ability any sooner. Yielding one
+-- frame in combat costs no DPS but stops the script from hogging the CPU.
+local COMBAT_YIELD_MS = 1    -- in combat: wait for the next frame, then go again
+local IDLE_MS = 100          -- out of combat: check ~10x/sec, but wake the frame you turn attack on
+local NAV_POLL_MS = 50       -- how often corpse-drag navigation checks progress
+
 local function color(val)
 	if val == 'on' then val = '\agon'
 	elseif val == 'off' then val = '\aroff'
@@ -615,6 +622,7 @@ local function dragCorpse(id, name)
 			mq.cmd('/corpsedrag')
 			break
 		end
+		mq.delay(NAV_POLL_MS)
 	end
 	
 	consent = true
@@ -635,6 +643,7 @@ local function dragCorpse(id, name)
 			mq.cmd('/corpsedrop')
 			break
 		end
+		mq.delay(NAV_POLL_MS)
 	end
 	if mq.TLO.Macro() and mq.TLO.Macro.Paused() == true then
 		print('\at[LeRogue] \ayUnpausing macro')
@@ -919,6 +928,24 @@ mq.imgui.init('LeRogue', lrWindow)
 
 ----------------------------Start loop----------------------------------------
 
+local function inFight()
+	return mq.TLO.Me.Combat() or notNil(mq.TLO.Me.XTarget()) > 0
+end
+
+-- Ends the idle wait early so nothing waits on the 100ms idle tick
+local function wakeUp()
+	return pause or burnNow or dragNow or inFight()
+end
+
+-- Yield between passes: one frame while fighting, up to IDLE_MS otherwise
+local function pace()
+	if inFight() then
+		mq.delay(COMBAT_YIELD_MS)
+	else
+		mq.delay(IDLE_MS, wakeUp)
+	end
+end
+
 local terminate = false
 while not terminate do
 	if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then break end
@@ -983,4 +1010,5 @@ while not terminate do
 		if dragNow == true then manualDragCorpse() dragNow = false end
 	end
 	if not Open then return end
+	if pause == false then pace() end
 end
