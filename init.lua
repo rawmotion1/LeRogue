@@ -63,6 +63,7 @@ local function runOnce()
 	routines.manageEndurance(fighting)
 	routines.rebuff()
 	routines.autoHide(fighting)
+	if not fighting then commands.removeMissingClickies() end
 
 	corpses.autoDrag()
 	if state.dragRequest then

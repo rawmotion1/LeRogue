@@ -140,6 +140,37 @@ function commands.removeClicky()
 	end
 end
 
+local CLICKY_CHECK_EVERY_MS = 60000
+local nextClickyCheck = 0
+local missingLastCheck = {} -- item ID -> true if it was missing at the previous check
+
+-- Drop clickies you no longer have, e.g. an old breastplate you replaced. An item must be
+-- missing at two checks in a row (a minute apart), and nothing may be on your cursor, so
+-- moving an item around your bags never removes it.
+function commands.removeMissingClickies()
+	if mq.gettime() < nextClickyCheck then return end
+	nextClickyCheck = mq.gettime() + CLICKY_CHECK_EVERY_MS
+	if mq.TLO.Cursor.ID() then return end
+
+	local changed = false
+	for routine, list in pairs({ combat = config.combatClickies, burn = config.burnClickies }) do
+		for i = #list, 1, -1 do
+			local id = list[i]
+			if (mq.TLO.FindItemCount(id)() or 0) > 0 then
+				missingLastCheck[id] = nil
+			elseif missingLastCheck[id] then
+				table.remove(list, i)
+				missingLastCheck[id] = nil
+				changed = true
+				print('\at[LeRogue] \ayRemoved item '..id..' from the '..routine..' routine: it\'s no longer in your inventory')
+			else
+				missingLastCheck[id] = true
+			end
+		end
+	end
+	if changed then config.save() end
+end
+
 function commands.listClickies()
 	for _, id in ipairs(config.combatClickies) do
 		print('\at[LeRogue]\ay Combat clickies: \ag', mq.TLO.FindItem(id).Name())

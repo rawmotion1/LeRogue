@@ -164,7 +164,8 @@ function abilities.use(name, purpose)
 	if failedUntil[name] and mq.gettime() < failedUntil[name] then return false end
 	if purpose == 'rotate' and mq.TLO.Me.ActiveDisc() then return false end -- one rotating disc at a time
 
-	local kind = typeOf(name)
+	-- Clickies are always items: one that's missing is just not ready, never tried as an AA
+	local kind = purpose == 'click' and 'item' or typeOf(name)
 	if not canUse(name, kind, purpose) then return false end
 
 	activate(name, kind, purpose)
