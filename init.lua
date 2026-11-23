@@ -39,6 +39,12 @@ local myTimer = 0
 local COMBAT_YIELD_MS = 1    -- in combat: wait for the next frame, then go again
 local IDLE_MS = 100          -- out of combat: check ~10x/sec, but wake the frame you turn attack on
 local NAV_POLL_MS = 50       -- how often corpse-drag navigation checks progress
+-- After using an ability we wait for it to show its cooldown, so it isn't fired twice.
+-- A successful use ends the wait right away; the timeout only matters when it failed.
+local ACTION_TIMEOUT_MS = 1000
+local FAIL_BACKOFF_MS = 2000 -- skip an ability this long after it didn't fire (e.g. "must be behind")
+local DISC_TRIES = 3         -- attempts to start a rotating disc before moving on
+local failedUntil = {}       -- ability -> mq.gettime() until which it's skipped
 
 local function color(val)
 	if val == 'on' then val = '\agon'
@@ -354,6 +360,7 @@ end
 
 local function execute(name, kind)
 	if name == nil then return end
+	if failedUntil[name] and mq.gettime() < failedUntil[name] then return end
 	local category
 	local start
 	local stop
@@ -368,7 +375,14 @@ local function execute(name, kind)
 			category = 2
 			if kind == 'rotate' then
 				if mq.TLO.Me.ActiveDisc() then return end
-				start = function() repeat mq.cmdf('/disc %s', name) mq.delay(250) until mq.TLO.Me.ActiveDisc() == name end
+				local function discUp() return mq.TLO.Me.ActiveDisc() == name end
+				start = function()
+					for _ = 1, DISC_TRIES do
+						mq.cmdf('/disc %s', name)
+						mq.delay(250, discUp)
+						if discUp() then break end
+					end
+				end
 			else
 				start = function() mq.cmdf('/disc %s', name) end
 			end
@@ -407,7 +421,15 @@ local function execute(name, kind)
 	if checks(name, category, kind) == true then
 		start()
 		if message ~= nil then message() end
-		mq.delay(3000, stop)
+		-- Done once it's on cooldown, or once a cast has started (clickies with a cast time)
+		local function took() return stop() or mq.TLO.Me.Casting() ~= nil end
+		mq.delay(ACTION_TIMEOUT_MS, took)
+		if took() or kind == 'live' then
+			-- Defensive abilities are never backed off: retry them every pass while needed
+			failedUntil[name] = nil
+		else
+			failedUntil[name] = mq.gettime() + FAIL_BACKOFF_MS
+		end
 	end
 end
 
@@ -514,22 +536,24 @@ end
 ----------------------------Emergency stay alive--------------------------
 
 local function stayAlive()
-	if mq.TLO.Me.XTarget() > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() then
+	if notNil(mq.TLO.Me.XTarget()) > 0 and not mq.TLO.Me.Song('Evader\'s Shroud of Stealth').ID() then
+		local hp = mq.TLO.Me.PctHPs()
+		if hp == nil then return end
 	    -- Tumble
-	    if mq.TLO.Me.PctHPs() < 75 and mq.TLO.Me.PctHPs() > 59 then execute(other.tumble, 'live') end
+	    if hp < 75 and hp > 59 then execute(other.tumble, 'live') end
 	    -- Premonition
-	    if mq.TLO.Me.PctHPs() < 60 and mq.TLO.Me.PctHPs() > 39 then execute(other.premonition, 'live') end
-	    -- Nimble
-	    if mq.TLO.Me.PctHPs() < 40 and mq.TLO.Me.PctHPs() > 19 and mq.TLO.Me.CombatAbilityReady(other.nimble)() then
-	        if mq.TLO.Me.ActiveDisc() ~= nil and mq.TLO.Me.ActiveDisc() ~= other.nimble then
+	    if hp < 60 and hp > 39 then execute(other.premonition, 'live') end
+	    -- Nimble (one attempt per pass; if it doesn't take, the next pass tries again)
+	    if other.nimble and hp < 40 and hp > 19 and mq.TLO.Me.CombatAbilityReady(other.nimble)() then
+			local active = mq.TLO.Me.ActiveDisc()
+	        if active ~= nil and active ~= other.nimble then
 				mq.cmd('/stopdisc')
+				mq.delay(500, function() return mq.TLO.Me.ActiveDisc() == nil end)
 			end
-	        repeat
-				execute(other.nimble, 'live')
-			until mq.TLO.Me.ActiveDisc() == other.nimble
+			execute(other.nimble, 'live')
 	    end
 	    -- Escape
-	    if mq.TLO.Me.PctHPs() < 20 and mq.TLO.Me.AltAbilityReady(other.escape)() then
+	    if other.escape and hp < 20 and mq.TLO.Me.AltAbilityReady(other.escape)() then
 	        mq.cmd('/squelch /backoff')
 	        mq.cmd('/squelch /end')
 	        mq.cmd('/squelch /attack off')
